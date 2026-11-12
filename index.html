@@ -206,6 +206,16 @@ table.proof tr:has(+ tr.note) td { border-bottom: 0; }
 .syncst { margin-left: auto; font-size: .78rem; }
 .syncst[data-k="cloud"]::before { content: "● "; color: var(--ok); }
 .syncst[data-k="local"]::before, .syncst[data-k="err"]::before { content: "● "; color: var(--warn); }
+.testmode .hint { display: none; }
+.tests { display: grid; gap: 10px; }
+.tcard { display: grid; gap: 8px; text-align: left; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.tcard:hover { border-color: var(--accent); }
+.tcard .g { font-family: var(--font-head); font-weight: 700; font-size: 1.6rem; color: var(--accent); }
+.tcard .hd { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.grade { font-family: var(--font-head); font-size: 3rem; font-weight: 700; line-height: 1; }
+.breakdown { text-align: left; display: grid; gap: 4px; margin-top: 6px; }
+.breakdown div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding: 4px 0; font-size: .92rem; }
+.scale { font-size: .82rem; color: var(--muted); }
 </style>
 <style>
 .acct { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
@@ -223,6 +233,7 @@ table.proof tr:has(+ tr.note) td { border-bottom: 0; }
   <div class="brand"><h1>Trenažér výrokovej logiky</h1><span class="sig">P → Q</span><span id="syncst" class="syncst small muted"></span><span id="acct" class="acct"></span></div>
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" data-v="kurz">Kurz</button>
+    <button class="tab" role="tab" data-v="test">Skúšobný test</button>
     <button class="tab" role="tab" data-v="teoria">Teória</button>
     <button class="tab" role="tab" data-v="trening">Precvičovanie</button>
     <button class="tab" role="tab" data-v="chyby">Moje chyby</button>
@@ -926,6 +937,83 @@ const BANK_WORD = [
 ];
 
 if (typeof module !== 'undefined') module.exports = { P, parse, show, eq, evalF, varsOf, rows, equivalent, classify, checkStep, diagnoseFormula, BANK_PROOF, parseSeq, BANK_WORD, TR_CURATED, proofHints, normalizeInput, mutations, genGood, subformulas, metaSubs, inst, ARG_FORMS, EQ_LAWS, EQ_FAKE, BANK_VALID, BANK_CONSIST, BANK_CLASSIFY, BANK_EQUIV, TPL_BASIC, TPL_COND, SCHEMAS, N, B, V };
+// ================= variácie úloh =================
+// Obmena dôkazu: uniformná substitúcia premenných (zachováva dokázateľnosť).
+function varyProof(prem, concl, d) {
+  const vars = varsOf(...prem, concl);
+  const pool = shuffle(['P', 'Q', 'R', 'S', 'T', 'U', 'A', 'B', 'C', 'K', 'M']);
+  const map = {};
+  vars.forEach((v, i) => {
+    let f = V(pool[i]);
+    if (d >= 3 && Math.random() < (d >= 4 ? 0.35 : 0.2)) f = N(f);
+    map[v] = f;
+  });
+  const s = f => subst(f, map);
+  return { prem: shuffle(prem.map(s)), concl: s(concl) };
+}
+
+// Generované slovné úlohy: tvar argumentu + schéma viet.
+const WORD_SCHEMAS = [
+  { K: ['Katka ide do kina', 'Katka nejde do kina'], L: ['Lukáš sa učí logiku', 'Lukáš sa neučí logiku'], Z: ['zajtra je skúška', 'zajtra nie je skúška'], D: ['prší', 'neprší'], M: ['Marek je doma', 'Marek nie je doma'] },
+  { P: ['Ján tancuje', 'Ján netancuje'], Q: ['Mária tancuje', 'Mária netancuje'], R: ['Braňo tancuje', 'Braňo netancuje'], T: ['Mária je šťastná', 'Mária nie je šťastná'], U: ['Braňo je šťastný', 'Braňo nie je šťastný'] },
+  { H: ['Hilton otvorí hotel', 'Hilton neotvorí hotel'], M: ['Marriott otvorí hotel', 'Marriott neotvorí hotel'], G: ['Guinness varí pivo', 'Guinness nevarí pivo'], J: ['Jameson destiluje whisky', 'Jameson nedestiluje whisky'], B: ['banka zvýši úroky', 'banka nezvýši úroky'] },
+  { S: ['študent sa učí', 'študent sa neučí'], Z: ['študent zloží skúšku', 'študent nezloží skúšku'], O: ['študent dostane štipendium', 'študent nedostane štipendium'], C: ['študent má čas na brigádu', 'študent nemá čas na brigádu'], V: ['študent chodí na prednášky', 'študent nechodí na prednášky'] },
+  { V: ['vláda zvýši dane', 'vláda nezvýši dane'], C: ['ceny stúpnu', 'ceny nestúpnu'], N: ['nezamestnanosť klesne', 'nezamestnanosť neklesne'], E: ['ekonomika rastie', 'ekonomika nerastie'], I: ['investície sa zvýšia', 'investície sa nezvýšia'] },
+  { A: ['Adam hrá futbal', 'Adam nehrá futbal'], E: ['Eva hrá tenis', 'Eva nehrá tenis'], F: ['ihrisko je otvorené', 'ihrisko nie je otvorené'], R: ['tréner príde', 'tréner nepríde'], W: ['je pekné počasie', 'nie je pekné počasie'] },
+];
+const WORD_FORMS = [
+  // [premisy, záver, minimálna náročnosť]
+  [['X → Y', 'X'], 'Y', 1], [['X → Y', '¬Y'], '¬X', 1], [['X → Y', 'Y'], 'X', 1], [['X → Y', '¬X'], '¬Y', 1],
+  [['X ∨ Y', '¬X'], 'Y', 1], [['X ∨ Y', 'X'], '¬Y', 2], [['X → Y', 'Y → Z'], 'X → Z', 2], [['X → Y', 'Y → Z'], 'Z → X', 2],
+  [['¬(X ∧ Y)', 'X'], '¬Y', 2], [['X ↔ Y', '¬Y'], '¬X', 2], [['X → Y', 'X → Z'], 'Y → Z', 3],
+  [['X → Y', 'Y → Z', 'X'], 'Z', 2], [['X → Y', 'Y → Z', '¬Z'], '¬X', 3], [['X ∨ Y', 'X → Z', 'Y → Z'], 'Z', 3],
+  [['X ∨ Y', 'X → Z', '¬Z'], 'Y', 3], [['X → (Y ∧ Z)', 'X'], 'Z', 3], [['(X ∧ Y) → Z', 'X', 'Y'], 'Z', 3],
+  [['(X ∨ Y) → Z', '¬Z'], '¬X', 4], [['X → (Y ∨ Z)', 'X', '¬Y'], 'Z', 4], [['X → Y', 'Z → Y', '¬Y'], '¬X ∧ ¬Z', 4],
+  [['X → Y', '¬X → Z'], 'Y ∨ Z', 5], [['(X ∧ Y) → Z', '¬Z', 'X'], '¬Y', 4], [['X → Y', 'Y → Z'], '¬Z → ¬X', 4],
+  [['X ∨ Y', 'X → Z'], 'Z', 3], [['X → (Y ∨ Z)', '¬Y'], 'X → Z', 5], [['¬(X ∧ Y)'], '¬X ∧ ¬Y', 3],
+];
+function renderSk(f, sch, top) {
+  const lit = g => (g.t === 'var' ? sch[g.n][0] : g.t === 'not' && g.a.t === 'var' ? sch[g.a.n][1] : null);
+  const L = lit(f);
+  if (L) return L;
+  const r = g => renderSk(g, sch, false);
+  switch (f.t) {
+    case 'and': return pick([`${r(f.a)} a ${r(f.b)}`, `${r(f.a)} a zároveň ${r(f.b)}`]);
+    case 'or': return `${r(f.a)} alebo ${r(f.b)}`;
+    case 'iff': return pick([`${r(f.a)} vtedy a len vtedy, keď ${r(f.b)}`, `${r(f.a)} práve vtedy, keď ${r(f.b)}`]);
+    case 'not':
+      if (f.a.t === 'and') return `nie je pravda, že ${r(f.a.a)} a zároveň ${r(f.a.b)}`;
+      if (f.a.t === 'or') return `nie je pravda, že ${r(f.a.a)} alebo ${r(f.a.b)}`;
+      return `nie je pravda, že ${r(f.a)}`;
+    case 'imp': {
+      const A = r(f.a), Bt = r(f.b);
+      const opts = [`ak ${A}, potom ${Bt}`, `ak ${A}, tak ${Bt}`, `${Bt}, ak ${A}`, `pokiaľ ${A}, ${Bt}`];
+      if (top) opts.push(`${A}, iba ak ${Bt}`, `${A}, len vtedy, keď ${Bt}`, `to, že ${A}, je dostatočnou podmienkou toho, že ${Bt}`, `to, že ${Bt}, je nutnou podmienkou toho, že ${A}`);
+      return pick(opts);
+    }
+  }
+  return show(f);
+}
+function genWordArg(d, mustValid) {
+  const forms = WORD_FORMS.filter(fm => fm[2] <= Math.max(1, d) && fm[2] >= Math.max(1, d - 2));
+  for (let k = 0; k < 50; k++) {
+    const [ps, c] = pick(forms);
+    const sch = pick(WORD_SCHEMAS);
+    const keys = shuffle(Object.keys(sch)).slice(0, 3);
+    const lit = i => (d >= 2 && Math.random() < (d >= 4 ? 0.35 : 0.2) ? N(V(keys[i])) : V(keys[i]));
+    const m = { X: lit(0), Y: lit(1), Z: lit(2) };
+    const prem = ps.map(s => subst(P(s), m)), concl = subst(P(c), m);
+    const valid = argCounter(prem, concl).length === 0;
+    if (mustValid && !valid) continue;
+    const s = prem.map(f => [cap(renderSk(f, sch, true)) + '.', show(f)]);
+    const cs = renderSk(concl, sch, true);
+    s.push([pick(['Preto ', 'Teda ', 'Z toho vyplýva, že ']) + cs + '.', show(concl)]);
+    const used = varsOf(...prem, concl);
+    const g = Object.fromEntries(used.map(x => [x, sch[x][0]]));
+    return { d, g, s };
+  }
+  return null;
+}
 // ================= stav =================
 const KEY = 'vlogika.v1';
 const defState = () => ({ levels: {}, rating: {}, mistakes: {}, unlockAll: false, solved: 0 });
@@ -1546,12 +1634,12 @@ function proofBuilder(el, prem, concl, onEnd) {
 GEN.proof = {
   label: 'Dôkazy', desc: 'Dokáž sekvent 10 základnými pravidlami',
   gen(d, o) {
-    let pool = BANK_PROOF.filter(p => (o.lvl ? (o.lvl === 15 ? true : p[1] === o.lvl) : true));
+    let pool = BANK_PROOF.filter(p => (o.lvls ? o.lvls.includes(p[1]) : o.lvl ? (o.lvl === 15 ? true : p[1] === o.lvl) : true));
     const near = pool.filter(p => Math.abs(p[2] - d) <= (o.lvl === 15 ? 0 : 1));
     if (near.length) pool = near;
-    if (o.lvl === 15 && near.length) pool = near;
     const [seq] = pick(pool);
-    const { prem, concl } = parseSeq(seq);
+    let { prem, concl } = parseSeq(seq);
+    if (o.vary !== false && (o.vary || Math.random() < 0.6)) ({ prem, concl } = varyProof(prem, concl, d));
     return {
       trains: ['cite', 'deps'],
       mount(el, done) {
@@ -1629,13 +1717,21 @@ GEN.trans = {
 
 // ---------- slovné úlohy ----------
 function wordTask(d, withProof) {
+  if (Math.random() < 0.6) {
+    const w = genWordArg(d, withProof);
+    if (w) return wordTaskFrom(w, withProof);
+  }
   let pool = BANK_WORD.map(w => {
     const fs = w.s.map(x => P(x[1]));
     return { w, fs, valid: argCounter(fs.slice(0, -1), fs[fs.length - 1]).length === 0 };
   });
   if (withProof) pool = pool.filter(p => p.valid);
   const near = pool.filter(p => Math.abs(p.w.d - d) <= 1);
-  const it = pick(near.length ? near : pool);
+  return wordTaskFrom(pick(near.length ? near : pool).w, withProof);
+}
+function wordTaskFrom(w0, withProof) {
+  const fs0 = w0.s.map(x => P(x[1]));
+  const it = { w: w0, fs: fs0, valid: argCounter(fs0.slice(0, -1), fs0[fs0.length - 1]).length === 0 };
   return {
     trains: ['connT', 'conv', 'valid'],
     mount(el, done) {
@@ -1725,6 +1821,81 @@ function wordTask(d, withProof) {
 }
 GEN.word = { label: 'Slovné úlohy: platnosť', desc: 'Prelož úsudok a rozhodni o platnosti', gen: d => wordTask(d, false) };
 GEN.wordproof = { label: 'Slovné úlohy: dôkaz', desc: 'Prelož úsudok a dokáž ho', gen: d => wordTask(d, true) };
+// ================= skúšobné testy E / D / C =================
+// Stupnica UK: A 91+, B 81+, C 71+, D 61+, E 51+, FX pod 51 %.
+const GRADES = [['A', 91], ['B', 81], ['C', 71], ['D', 61], ['E', 51], ['FX', 0]];
+const gradeOf = pct => GRADES.find(g => pct >= g[1])[0];
+const RULES_BASIC = ['MPP', 'MTT', '∧I', '∧E', '∨I', 'DN', 'AFF', 'NEGANT'];
+const RULES_ALL = ['A', 'MPP', 'MTT', 'DN', '∧I', '∧E', '∨I', '∨E', 'CP', 'RAA', 'AFF', 'NEGANT'];
+// [generátor, nastavenia, náročnosť, body]
+const TESTS = {
+  E: { t: 'Test na E', goal: 'E', min: 51, desc: 'Základy: tabuľky s 2 premennými, rozpoznanie pravidiel, krátke dôkazy (∧, DN, MPP, MTT), jednoduché slovné úlohy.', items: [
+    ['valid', {}, 1, 8], ['table', {}, 2, 8], ['classify', {}, 2, 6],
+    ['rid', { rules: RULES_BASIC }, 1, 8], ['rcon', { rules: ['MPP', 'MTT', '∧I', '∧E', 'DN'] }, 1, 8],
+    ['proof', { lvls: [10, 11] }, 1, 12], ['proof', { lvls: [11] }, 2, 12],
+    ['trans', { set: 'cond' }, 2, 8], ['word', {}, 1, 14], ['word', {}, 2, 16]] },
+  D: { t: 'Test na D', goal: 'D', min: 61, desc: 'Tabuľky s 3 premennými a protipríkladom, CP a ∨E, dlhšie dôkazy, slovné úlohy s dôkazom.', items: [
+    ['valid', {}, 3, 8], ['table', {}, 3, 8], ['equiv', {}, 3, 6],
+    ['rid', { rules: RULES_ALL }, 2, 6], ['rcon', { rules: ['MPP', 'MTT', '∨I', '∨E', 'CP', 'DN'] }, 2, 8],
+    ['proof', { lvls: [11, 12, 13] }, 2, 12], ['proof', { lvls: [12, 13] }, 3, 14],
+    ['trans', {}, 3, 8], ['word', {}, 3, 12], ['wordproof', {}, 2, 18]] },
+  C: { t: 'Test na C', goal: 'C', min: 71, desc: 'Náročnejšie tabuľky a konzistencia, všetkých 10 pravidiel vrátane RAA, obmeny dôkazov s negáciami, slovné úlohy s dôkazom.', items: [
+    ['valid', {}, 4, 7], ['table', {}, 4, 8], ['consist', {}, 4, 5],
+    ['rcon', { rules: ['∨E', 'CP', 'RAA', 'MTT', 'DN'] }, 3, 8],
+    ['proof', { lvls: [13, 14] }, 3, 12], ['proof', { lvls: [12, 13, 14], vary: true }, 4, 14], ['proof', { lvls: [14] }, 4, 14],
+    ['trans', {}, 4, 7], ['wordproof', {}, 3, 12], ['wordproof', {}, 4, 13]] },
+};
+const TEST_AREA = { valid: 'Tabuľky hodnôt', table: 'Tabuľky hodnôt', classify: 'Tabuľky hodnôt', equiv: 'Tabuľky hodnôt', consist: 'Tabuľky hodnôt', rid: 'Pravidlá', rcon: 'Pravidlá', proof: 'Pravidlá', trans: 'Slovné úlohy', word: 'Slovné úlohy', wordproof: 'Slovné úlohy' };
+
+function startTest(key) {
+  const T = TESTS[key];
+  const items = T.items.slice();
+  const total = items.reduce((a, x) => a + x[3], 0);
+  const t0 = Date.now();
+  runSession({
+    title: T.t, n: items.length, test: true, pts: items.map(x => x[3]),
+    pick: i => [items[i][0], items[i][1]],
+    diff: (id, i) => items[i][2],
+    onFinish(score, results) {
+      const got = results.reduce((a, r, i) => a + (r.ok ? items[i][3] : 0), 0);
+      const pct = Math.round((got / total) * 100);
+      const g = gradeOf(pct);
+      const passed = pct >= T.min;
+      const mins = Math.round((Date.now() - t0) / 60000);
+      const areas = {};
+      results.forEach((r, i) => { const a = TEST_AREA[items[i][0]]; areas[a] = areas[a] || [0, 0]; areas[a][1] += items[i][3]; if (r.ok) areas[a][0] += items[i][3]; });
+      const weakest = Object.entries(areas).sort((x, y) => x[1][0] / x[1][1] - y[1][0] / y[1][1])[0];
+      S.tests = S.tests || {};
+      const prev = S.tests[key] || { best: 0, runs: 0 };
+      S.tests[key] = { best: Math.max(prev.best, pct), runs: prev.runs + 1, last: pct };
+      save();
+      return {
+        scoreText: `${got} / ${total} b`,
+        html: `<div class="grade" style="color:var(${passed ? '--ok' : '--bad'})">${g}</div><p>${pct} % · ${mins} min</p>
+          <p>${passed ? `Úroveň ${T.goal} je zvládnutá.` : `Na ${T.goal} treba aspoň ${T.min} %. Chýba ${T.min - pct} %.`}</p>
+          <div class="breakdown">${Object.entries(areas).map(([a, [x, y]]) => `<div><span>${a}</span><span class="fx">${x} / ${y} b</span></div>`).join('')}</div>
+          ${weakest && weakest[1][0] < weakest[1][1] ? `<p class="small muted">Najviac bodov sa stratilo v časti ${weakest[0]}.</p>` : ''}
+          <p class="scale">Stupnica: A 91 %, B 81 %, C 71 %, D 61 %, E 51 %</p>`,
+        homeLabel: 'Späť na testy',
+        onHome: () => { location.hash = 'test'; route(); },
+        buttons: '<button class="btn primary newt">Nový test (iné úlohy)</button>',
+        wire: el => $('.newt', el).addEventListener('click', () => startTest(key)),
+      };
+    },
+  });
+}
+function viewTest() {
+  const st = S.tests || {};
+  let h = `<div class="stack"><div><h2>Skúšobný test</h2><p class="muted">Tri úrovne podľa známky, ktorú chceš získať. Každý test má 10 úloh z tabuliek hodnôt, pravidiel a slovných úloh a za každú sú body. Úlohy sa zakaždým vygenerujú nanovo, takže test môžeš opakovať.</p></div>
+    <p class="small muted">Počas testu nie je teória ani nápoveda. Či je úloha správne, uvidíš hneď, ale body sa rátajú len za prvý pokus. Na konci dostaneš známku podľa stupnice A až FX.</p><div class="tests">`;
+  for (const k of ['E', 'D', 'C']) {
+    const T = TESTS[k], s = st[k];
+    const total = T.items.reduce((a, x) => a + x[3], 0);
+    h += `<button class="tcard" data-k="${k}"><div class="hd"><span class="g">${k}</span><span class="t" style="font-weight:600">${T.t}</span><span class="small muted">10 úloh · ${total} b · na ${k} treba ${T.min} %</span></div><span class="small">${T.desc}</span>${s ? `<span class="small muted">Najlepšie: ${s.best} % (${gradeOf(s.best)}) · pokusov: ${s.runs}</span>` : ''}</button>`;
+  }
+  appEl.innerHTML = h + '</div></div>';
+  $$('.tcard', appEl).forEach(b => b.addEventListener('click', () => startTest(b.dataset.k)));
+}
 // ================= TEÓRIA =================
 const pf = (lines, cap) => '<div class="ex">' + (cap ? `<p class="excap">${cap}</p>` : '') + '<div class="proofwrap"><table class="proof"><tbody>' + lines.map(([d, n, f, j, note]) => `<tr><td class="dep">${d}</td><td class="n">(${n})</td><td class="fm">${f}</td><td class="j">${j}</td></tr>` + (note ? `<tr class="note"><td></td><td></td><td colspan="2">${note}</td></tr>` : '')).join('') + '</tbody></table></div></div>';
 const tt = (vars, cols, rc) => truthTable(vars, cols.map(c => typeof c === 'string' ? { f: P(c) } : { f: P(c[0]), main: true }), rc);
@@ -2193,18 +2364,19 @@ function runSession(cfg) {
     bar.forEach((b, k) => b.classList.toggle('now', k === i));
     $('.cnt', appEl).textContent = `${i + 1} / ${cfg.n}`;
     const [id, opts] = cfg.pick(i);
-    const d = clamp(Math.round(cfg.diff(id)), 1, 5);
+    const d = clamp(Math.round(cfg.diff(id, i)), 1, 5);
     const task = GEN[id].gen(d, opts || {});
     const card = $('.task', appEl);
-    card.innerHTML = `<div class="meta"><span>${GEN[id].label}</span><span class="dots" title="náročnosť">${dots(d)}</span><button class="btn thbtn" type="button">Teória</button></div><div class="body"></div><div class="next"></div>`;
-    $('.thbtn', card).addEventListener('click', () => openTheory(chapterFor(id, opts)));
+    card.innerHTML = `<div class="meta"><span>${cfg.test ? `Úloha ${i + 1} · ${cfg.pts[i]} b · ` : ''}${GEN[id].label}</span>${cfg.test ? '' : `<span class="dots" title="náročnosť">${dots(d)}</span><button class="btn thbtn" type="button">Teória</button>`}</div><div class="body"></div><div class="next"></div>`;
+    card.classList.toggle('testmode', !!cfg.test);
+    if (!cfg.test) $('.thbtn', card).addEventListener('click', () => openTheory(chapterFor(id, opts)));
     let got = false;
     task.mount($('.body', card), res => {
       if (got) return; got = true;
-      results.push(res.ok);
+      results.push({ ok: res.ok, id, tags: res.tags || [] });
       if (res.ok) score++;
       bar[i].classList.remove('now'); bar[i].classList.add(res.ok ? 'ok' : 'bad');
-      S.rating[id] = clamp(rating(id) + (res.ok ? 0.4 : -0.6), 1, 5);
+      if (!cfg.test) S.rating[id] = clamp(rating(id) + (res.ok ? 0.4 : -0.6), 1, 5);
       recordMistakes(res.tags);
       if (res.ok) recordTrained(task.trains);
       S.solved++;
@@ -2217,8 +2389,8 @@ function runSession(cfg) {
     });
   }
   function finish() {
-    const r = cfg.onFinish ? cfg.onFinish(score) : {};
-    appEl.innerHTML = `<div class="card summary stack"><p class="muted">${esc(cfg.title)}</p><div class="score">${score} / ${cfg.n}</div>${r.html || ''}<div class="row" style="justify-content:center">${r.buttons || ''}<button class="btn again">Znova</button><button class="btn primary home">${r.homeLabel || 'Späť'}</button></div></div>`;
+    const r = cfg.onFinish ? cfg.onFinish(score, results) : {};
+    appEl.innerHTML = `<div class="card summary stack"><p class="muted">${esc(cfg.title)}</p><div class="score">${r.scoreText || `${score} / ${cfg.n}`}</div>${r.html || ''}<div class="row" style="justify-content:center">${r.buttons || ''}<button class="btn again">Znova</button><button class="btn primary home">${r.homeLabel || 'Späť'}</button></div></div>`;
     $('.again', appEl).addEventListener('click', () => runSession(cfg));
     $('.home', appEl).addEventListener('click', () => (r.onHome ? r.onHome() : route()));
     if (r.wire) r.wire(appEl);
@@ -2324,7 +2496,7 @@ function viewWeak() {
   $('.yes', appEl).addEventListener('click', () => { S = defState(); save(); viewWeak(); });
 }
 
-const VIEWS = { kurz: viewCourse, teoria: viewTheory, trening: viewPractice, chyby: viewWeak };
+const VIEWS = { kurz: viewCourse, test: viewTest, teoria: viewTheory, trening: viewPractice, chyby: viewWeak };
 function route() {
   let v = (location.hash || '').replace('#', '');
   if (!VIEWS[v]) v = 'kurz';
