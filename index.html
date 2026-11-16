@@ -222,6 +222,46 @@ table.proof tr:has(+ tr.note) td { border-bottom: 0; }
 table.truth th.cur, table.truth td.cur { outline: 2px solid var(--accent); outline-offset: -2px; }
 .mtab.on { box-shadow: 0 0 0 3px var(--accent-soft); }
 .photo .pout { margin-top: 6px; color: var(--muted); }
+.howto { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: .92rem; }
+.howto ol { margin: 4px 0 0; padding-left: 1.4em; display: grid; gap: 4px; }
+.howto .tbt { font-weight: 600; }
+.notes { margin-top: 14px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; }
+.notes summary { cursor: pointer; font-size: .85rem; color: var(--muted); font-weight: 600; }
+.notes textarea { width: 100%; margin-top: 6px; font-family: var(--font-fx); font-size: .95rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); resize: vertical; min-height: 90px; }
+.notes .keys { margin-top: 8px; }
+.term { border-bottom: 1px dotted var(--accent); cursor: help; }
+.term:hover, .term:focus-visible { background: var(--accent-soft); outline: none; }
+.termpop { position: fixed; z-index: 200; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); font-size: .9rem; line-height: 1.45; }
+.termpop b { font-family: var(--font-head); }
+.termpop p { margin-top: 4px; }
+.treewrap { overflow-x: auto; padding: 6px 0 10px; }
+.tree { display: inline-block; min-width: 100%; }
+.tn { display: flex; flex-direction: column; align-items: center; }
+.tits { display: grid; gap: 2px; }
+.ti { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; padding: 2px 6px; border-radius: 6px; font-size: .95rem; }
+.ti .tnn { color: var(--muted); font-size: .75rem; min-width: 1.6em; text-align: right; }
+.ti .tck { color: var(--ok); font-size: .8rem; }
+.ti .tfr { color: var(--muted); font-size: .72rem; }
+.ti.hl { background: var(--warn-soft); outline: 2px solid var(--warn); }
+.ti.new { background: var(--accent-soft); }
+.tk { display: flex; gap: 14px; align-items: flex-start; justify-content: center; margin-top: 8px; }
+.tkc { border-top: 2px solid var(--line); padding-top: 6px; }
+.tx { color: var(--bad); font-weight: 700; margin-top: 2px; display: flex; gap: 4px; align-items: baseline; }
+.tx span { font-size: .7rem; font-weight: 500; color: var(--muted); }
+.to { color: var(--warn); font-size: .75rem; font-weight: 600; margin-top: 2px; }
+.fbin { margin-top: 6px; }
+.fbin h4 { margin: 0 0 4px; font-size: .95rem; }
+.choices.col { flex-direction: column; align-items: stretch; }
+.choices.col .btn { text-align: left; }
+.keys.letters button { min-width: 30px; height: 30px; font-size: .85rem; }
+.solbox { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.solstep { margin-top: 16px; }
+.solstep h4 { font-family: var(--font-head); margin-bottom: 6px; }
+.solsent { border-left: 3px solid var(--line); padding: 4px 0 4px 10px; margin-top: 10px; }
+.solsent .role { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.solsent .solf { font-weight: 600; font-size: 1.05rem; margin: 4px 0; }
+.solsent ul { margin: 4px 0 0; padding-left: 1.3em; font-size: .9rem; display: grid; gap: 3px; }
+.hardfull { font-size: 1.05rem; line-height: 1.55; margin-bottom: 12px; }
 </style>
 <style>
 .acct { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
@@ -241,6 +281,7 @@ table.truth th.cur, table.truth td.cur { outline: 2px solid var(--accent); outli
     <button class="tab" role="tab" data-v="kurz">Kurz</button>
     <button class="tab" role="tab" data-v="test">Skúšobný test</button>
     <button class="tab" role="tab" data-v="ries">Riešiteľ</button>
+    <button class="tab" role="tab" data-v="tazke">Ťažké príklady</button>
     <button class="tab" role="tab" data-v="teoria">Teória</button>
     <button class="tab" role="tab" data-v="trening">Precvičovanie</button>
     <button class="tab" role="tab" data-v="chyby">Moje chyby</button>
@@ -549,6 +590,10 @@ const union = (...ss) => [...new Set(ss.flat())].sort((a, b) => a - b);
 function checkStep(lines, f, rule, cites) {
   const n = lines.length + 1;
   const bad = (msg, tag) => ({ ok: false, msg, tag: tag || RULE_TAG[rule] });
+  if (typeof DRULES !== 'undefined' && DRULES[rule]) {
+    for (const c of cites) if (!Number.isInteger(c) || c < 1 || c >= n) return bad(`Riadok ${c} sa nedá citovať. Citovať môžeš riadky 1 až ${n - 1}.`, 'cite');
+    return checkDerived(lines, f, rule, cites);
+  }
   for (const c of cites)
     if (!Number.isInteger(c) || c < 1 || c >= n) return bad(`Riadok ${c} sa nedá citovať. Citovať môžeš riadky 1 až ${n - 1}.`, 'cite');
   const L = k => lines[k - 1];
@@ -944,6 +989,81 @@ const BANK_WORD = [
 ];
 
 if (typeof module !== 'undefined') module.exports = { P, parse, show, eq, evalF, varsOf, rows, equivalent, classify, checkStep, diagnoseFormula, BANK_PROOF, parseSeq, BANK_WORD, TR_CURATED, proofHints, normalizeInput, mutations, genGood, subformulas, metaSubs, inst, ARG_FORMS, EQ_LAWS, EQ_FAKE, BANK_VALID, BANK_CONSIST, BANK_CLASSIFY, BANK_EQUIV, TPL_BASIC, TPL_COND, SCHEMAS, N, B, V };
+// ================= odvodené pravidlá a skratky (SI, TI) =================
+// v: varianty [premisy, záver]; eq: true = platí oboma smermi (—||—)
+const DRULES = {
+  HS: { n: 'Hypotetický sylogizmus', g: 'usudok', v: [[['P → Q', 'Q → R'], 'P → R']] },
+  DS: { n: 'Disjunktívny sylogizmus', g: 'usudok', v: [[['P ∨ Q', '¬P'], 'Q'], [['P ∨ Q', '¬Q'], 'P']] },
+  MPT: { n: 'Modus ponendo tollens', g: 'usudok', v: [[['¬(P ∧ Q)', 'P'], '¬Q'], [['¬(P ∧ Q)', 'Q'], '¬P']] },
+  JD: { n: 'Jednoduchá konštruktívna dilema', g: 'usudok', v: [[['(P → R) ∧ (Q → R)', 'P ∨ Q'], 'R'], [['P → R', 'Q → R', 'P ∨ Q'], 'R']] },
+  KD: { n: 'Komplexná konštruktívna dilema', g: 'usudok', v: [[['(P → Q) ∧ (R → S)', 'P ∨ R'], 'Q ∨ S'], [['P → Q', 'R → S', 'P ∨ R'], 'Q ∨ S']] },
+  JDD: { n: 'Jednoduchá deštruktívna dilema', g: 'usudok', v: [[['(P → Q) ∧ (P → R)', '¬Q ∨ ¬R'], '¬P'], [['P → Q', 'P → R', '¬Q ∨ ¬R'], '¬P']] },
+  DD: { n: 'Komplexná deštruktívna dilema', g: 'usudok', v: [[['(P → Q) ∧ (R → S)', '¬Q ∨ ¬S'], '¬P ∨ ¬R'], [['P → Q', 'R → S', '¬Q ∨ ¬S'], '¬P ∨ ¬R']] },
+  'ŠD': { n: 'Špeciálna dilema', g: 'usudok', v: [[['P → Q', '¬P → Q'], 'Q']] },
+  CM: { n: 'Claviov zákon', g: 'usudok', v: [[['P → ¬P'], '¬P'], [['¬P → P'], 'P']] },
+  ExFals: { n: 'Ex falso quodlibet', g: 'usudok', v: [[['P ∧ ¬P'], 'Q'], [['¬P ∧ P'], 'Q'], [['P', '¬P'], 'Q']] },
+  TC: { n: 'Pravdivý konzekvent', g: 'usudok', v: [[['P'], 'Q → P']] },
+  FA: { n: 'Nepravdivý antecedent', g: 'usudok', v: [[['¬P'], 'P → Q'], [['P'], '¬P → Q']] },
+  KA: { n: 'Komutácia antecedentov', g: 'usudok', v: [[['P → (Q → R)'], 'Q → (P → R)']] },
+  '↔PP': { n: 'Bikondicionál ponendo ponens', g: 'usudok', v: [[['P ↔ Q', 'P'], 'Q'], [['P ↔ Q', 'Q'], 'P']] },
+  '↔TT': { n: 'Bikondicionál tollendo tollens', g: 'usudok', v: [[['P ↔ Q', '¬P'], '¬Q'], [['P ↔ Q', '¬Q'], '¬P']] },
+  DM: { n: 'De Morganove zákony', g: 'ekv', eq: true, v: [[['¬(P ∨ Q)'], '¬P ∧ ¬Q'], [['¬(P ∧ Q)'], '¬P ∨ ¬Q'], [['P ∨ Q'], '¬(¬P ∧ ¬Q)'], [['P ∧ Q'], '¬(¬P ∨ ¬Q)']] },
+  Impl: { n: 'Materiálna implikácia', g: 'ekv', eq: true, v: [[['P → Q'], '¬P ∨ Q'], [['P → Q'], '¬(P ∧ ¬Q)'], [['¬(P → Q)'], 'P ∧ ¬Q'], [['¬P → Q'], 'P ∨ Q']] },
+  Transp: { n: 'Transpozícia (kontrapozícia)', g: 'ekv', eq: true, v: [[['P → Q'], '¬Q → ¬P'], [['P → ¬Q'], 'Q → ¬P'], [['¬P → Q'], '¬Q → P']] },
+  Exp: { n: 'Exportácia a importácia', g: 'ekv', eq: true, v: [[['(P ∧ Q) → R'], 'P → (Q → R)']] },
+  Com: { n: 'Komutativita', g: 'ekv', eq: true, v: [[['P ∨ Q'], 'Q ∨ P'], [['P ∧ Q'], 'Q ∧ P']] },
+  Asoc: { n: 'Asociativita', g: 'ekv', eq: true, v: [[['P ∨ (Q ∨ R)'], '(P ∨ Q) ∨ R'], [['P ∧ (Q ∧ R)'], '(P ∧ Q) ∧ R']] },
+  Dist: { n: 'Distributivita', g: 'ekv', eq: true, v: [[['P ∧ (Q ∨ R)'], '(P ∧ Q) ∨ (P ∧ R)'], [['P ∨ (Q ∧ R)'], '(P ∨ Q) ∧ (P ∨ R)']] },
+  Ekviv: { n: 'Materiálna ekvivalencia', g: 'ekv', eq: true, v: [[['P ↔ Q'], '(P → Q) ∧ (Q → P)'], [['P ↔ Q'], '(P ∧ Q) ∨ (¬P ∧ ¬Q)']] },
+  Taut: { n: 'Tautológia (idempotencia)', g: 'ekv', eq: true, v: [[['P'], 'P ∨ P'], [['P'], 'P ∧ P']] },
+  'Neg↔': { n: 'Negácia bikondicionálu', g: 'ekv', eq: true, v: [[['¬(P ↔ Q)'], '¬P ↔ Q'], [['¬(P ↔ Q)'], 'P ↔ ¬Q']] },
+  '↔Transp': { n: 'Transpozícia bikondicionálu', g: 'ekv', eq: true, v: [[['P ↔ Q'], '¬Q ↔ ¬P'], [['P ↔ ¬Q'], '¬P ↔ Q']] },
+  TI: { n: 'Zavedenie teorémy', g: 'ti', v: [[[], 'P ∨ ¬P'], [[], '¬P ∨ P'], [[], '¬(P ∧ ¬P)'], [[], 'P → P']] },
+};
+const DRULE_NAMES = Object.keys(DRULES);
+const D_PARSED = {};
+for (const k of DRULE_NAMES) {
+  const out = [];
+  for (const [ps, c] of DRULES[k].v) {
+    out.push({ p: ps.map(P), c: P(c) });
+    if (DRULES[k].eq) out.push({ p: [P(c)], c: P(ps[0]) });
+  }
+  D_PARSED[k] = out;
+}
+const dLabel = r => (r === 'TI' ? 'TI' : DRULES[r] ? 'SI ' + r : r);
+const dSchema = r => DRULES[r].v.map(([ps, c]) => `${ps.join(', ')} ${DRULES[r].eq ? '—||—' : '⊢'} ${c}`).join('; &nbsp;');
+// zhoda vzoru (metapremenné P, Q, R, S) s formulou
+function dMatch(pat, f, b) {
+  if (pat.t === 'var') { if (b[pat.n]) return eq(b[pat.n], f); b[pat.n] = f; return true; }
+  if (pat.t !== f.t) return false;
+  if (!dMatch(pat.a, f.a, b)) return false;
+  return pat.b ? dMatch(pat.b, f.b, b) : true;
+}
+function dPerms(a) { if (a.length <= 1) return [a]; const o = []; a.forEach((x, i) => dPerms(a.filter((_, j) => j !== i)).forEach(p => o.push([x].concat(p)))); return o; }
+// vráti záver, ktorý pravidlo z citovaných formúl dáva (ak je jednoznačný), alebo null
+function dApply(rule, fs, target) {
+  for (const v of D_PARSED[rule]) {
+    if (v.p.length !== fs.length) continue;
+    for (const pm of dPerms(fs)) {
+      const b = {};
+      if (!v.p.every((p, i) => dMatch(p, pm[i], b))) continue;
+      if (target) { const b2 = Object.assign({}, b); if (dMatch(v.c, target, b2)) return target; }
+      else if (varsOf(v.c).every(x => b[x])) return subst(v.c, b);
+    }
+  }
+  return null;
+}
+function checkDerived(lines, f, rule, cites) {
+  const R = DRULES[rule];
+  const bad = msg => ({ ok: false, msg, tag: 'si' });
+  const fs = cites.map(k => lines[k - 1].f);
+  if (dApply(rule, fs, f)) return { ok: true, deps: union(...cites.map(k => lines[k - 1].deps), []) };
+  const counts = [...new Set(D_PARSED[rule].map(v => v.p.length))];
+  if (!counts.includes(cites.length)) return { ok: false, tag: 'cite', msg: `${dLabel(rule)} (${R.n}) cituje ${counts.join(' alebo ')} ${counts[counts.length - 1] === 1 ? 'riadok' : 'riadky'}${rule === 'TI' ? ', teda žiadny' : ''}. Schéma: <span class="fx">${dSchema(rule)}</span>` };
+  const would = fs.length ? dApply(rule, fs) : null;
+  if (would) return bad(`Z citovaných riadkov dáva ${dLabel(rule)} formulu <b class="fx">${show(would)}</b>, nie <b class="fx">${show(f)}</b>.`);
+  return bad(`Citované riadky a nový riadok nezodpovedajú schéme pravidla ${dLabel(rule)} (${R.n}): <span class="fx">${dSchema(rule)}</span>${R.eq ? ' Skratka sa používa na celý riadok, nie na jeho časť.' : ''}`);
+}
 // ================= variácie úloh =================
 // Obmena dôkazu: uniformná substitúcia premenných (zachováva dokázateľnosť).
 function varyProof(prem, concl, d) {
@@ -1567,7 +1687,7 @@ GEN.rcon = {
 };
 
 // ---------- tvorba dôkazu ----------
-function proofBuilder(el, prem, concl, onEnd) {
+function proofBuilder(el, prem, concl, onEnd, opt = {}) {
   const lines = prem.map((f, i) => ({ f, rule: 'A', cites: [], deps: [i + 1] }));
   const errTags = [];
   let hintLvl = 0, finished = false;
@@ -1577,7 +1697,7 @@ function proofBuilder(el, prem, concl, onEnd) {
     <div class="addline">
       <div><label class="lab">Nový riadok: formula</label><div class="fslot"></div></div>
       <div class="row2">
-        <div><label class="lab" for="rs">Pravidlo</label><select id="rs">${RULES.map(r => `<option>${r}</option>`).join('')}</select></div>
+        <div><label class="lab" for="rs">Pravidlo</label><select id="rs">${RULES.map(r => `<option>${r}</option>`).join('')}${opt.derived ? '<optgroup label="Odvodené úsudky (SI)">' + DRULE_NAMES.filter(r => DRULES[r].g === 'usudok').map(r => `<option value="${r}">${r} · ${DRULES[r].n}</option>`).join('') + '</optgroup><optgroup label="Ekvivalencie (SI)">' + DRULE_NAMES.filter(r => DRULES[r].g === 'ekv').map(r => `<option value="${r}">${r} · ${DRULES[r].n}</option>`).join('') + '</optgroup><optgroup label="Teorémy"><option value="TI">TI · zavedenie teorémy</option></optgroup>' : ''}</select></div>
         <div><label class="lab" for="cs">Citované riadky</label><input class="cites" id="cs" placeholder="napr. 1,3" inputmode="numeric"></div>
         <div style="align-self:end"><button class="btn primary addb">Pridať riadok</button></div>
       </div>
@@ -1589,7 +1709,7 @@ function proofBuilder(el, prem, concl, onEnd) {
   const fb = $('.fb', el);
   const render = () => {
     $('.ptab', el).innerHTML = '<div class="proofwrap"><table class="proof"><tbody>' + lines.map((l, i) =>
-      `<tr class="${i < prem.length ? 'prem' : ''}"><td class="dep">${l.deps.join(',')}</td><td class="n">(${i + 1})</td><td class="fm">${show(l.f)}</td><td class="j">${l.cites.join(',')} ${l.rule}</td></tr>`).join('') +
+      `<tr class="${i < prem.length ? 'prem' : ''}"><td class="dep">${l.deps.join(',')}</td><td class="n">(${i + 1})</td><td class="fm">${show(l.f)}</td><td class="j">${l.cites.join(',')} ${dLabel(l.rule)}</td></tr>`).join('') +
       `</tbody></table></div><p class="small muted" style="margin-top:6px">Závislosti (ľavý stĺpec) dopočítava aplikácia sama. Premisy sú riadky 1 až ${prem.length}.</p>`;
   };
   render();
@@ -1606,7 +1726,7 @@ function proofBuilder(el, prem, concl, onEnd) {
     const cites = parseCites($('#cs', el).value);
     if (cites.some(isNaN)) { feedback(fb, 'info', 'Citované riadky', '<p>Napíš čísla riadkov oddelené čiarkou, napr. 1,3.</p>'); return; }
     const res = checkStep(lines, f, rule, cites);
-    if (!res.ok) { errTags.push(res.tag); feedback(fb, 'bad', 'Tento krok neprejde', `<p>${res.msg}</p><p class="small muted">${RULE_INFO[rule] || ''}</p>`); fi.mark(false); return; }
+    if (!res.ok) { errTags.push(res.tag); feedback(fb, 'bad', 'Tento krok neprejde', `<p>${res.msg}</p><p class="small muted">${RULE_INFO[rule] || (DRULES[rule] ? DRULES[rule].n + ': <span class="fx">' + dSchema(rule) + '</span>' : '')}</p>`); fi.mark(false); return; }
     lines.push({ f, rule, cites, deps: res.deps });
     fi.inp.value = ''; fi.inp.dispatchEvent(new Event('input')); $('#cs', el).value = ''; fi.mark(null);
     hintLvl = 0;
@@ -1634,8 +1754,10 @@ function proofBuilder(el, prem, concl, onEnd) {
   $('.quit', el).addEventListener('click', () => {
     if (finished) return;
     const h = proofHints(prem.map((f, i) => ({ f, rule: 'A', cites: [], deps: [i + 1] })), prem.length, concl);
-    feedback(fb, 'bad', 'Príklad je vzdaný', `<p>Ako začať: ${h.strat[0]}</p>`);
+    feedback(fb, 'bad', 'Príklad je vzdaný', `<p>Ako začať: ${h.strat[0]}</p><p>Nižšie je celé riešenie. Prejdi si ho krok za krokom.</p>`);
     finish(false);
+    const sol = autoProve(prem, concl, { derived: !!opt.derived });
+    if (sol) { const sb = document.createElement('div'); sb.className = 'solbox'; el.appendChild(sb); proofWalk(sb, sol, prem, concl, { note: '<p class="lab">Riešenie krok za krokom</p>' }); }
   });
 }
 GEN.proof = {
@@ -1736,7 +1858,7 @@ function wordTask(d, withProof) {
   const near = pool.filter(p => Math.abs(p.w.d - d) <= 1);
   return wordTaskFrom(pick(near.length ? near : pool).w, withProof);
 }
-function wordTaskFrom(w0, withProof) {
+function wordTaskFrom(w0, withProof, opt) {
   const fs0 = w0.s.map(x => P(x[1]));
   const it = { w: w0, fs: fs0, valid: argCounter(fs0.slice(0, -1), fs0[fs0.length - 1]).length === 0 };
   return {
@@ -1821,7 +1943,7 @@ function wordTaskFrom(w0, withProof) {
       function runProof(prevOk) {
         const pf = $('.pf', $('.step2', el));
         pf.style.marginTop = '14px';
-        proofBuilder(pf, prem, concl, r => done({ ok: prevOk && r.ok, tags: tags.concat(r.tags) }));
+        proofBuilder(pf, prem, concl, r => done({ ok: prevOk && r.ok, tags: tags.concat(r.tags) }), opt || {});
       }
     },
   };
@@ -1836,17 +1958,17 @@ const RULES_BASIC = ['MPP', 'MTT', '∧I', '∧E', '∨I', 'DN', 'AFF', 'NEGANT'
 const RULES_ALL = ['A', 'MPP', 'MTT', 'DN', '∧I', '∧E', '∨I', '∨E', 'CP', 'RAA', 'AFF', 'NEGANT'];
 // [generátor, nastavenia, náročnosť, body]
 const TESTS = {
-  E: { t: 'Test na E', goal: 'E', min: 51, desc: 'Základy: tabuľky s 2 premennými, rozpoznanie pravidiel, krátke dôkazy (∧, DN, MPP, MTT), jednoduché slovné úlohy.', items: [
+  E: { t: 'Skúšobný test: ľahká náročnosť', name: 'Ľahká', goal: 'E', min: 51, desc: 'Základy: tabuľky s 2 premennými, rozpoznanie pravidiel, krátke dôkazy (∧, DN, MPP, MTT), jednoduché slovné úlohy.', items: [
     ['valid', {}, 1, 8], ['table', {}, 2, 8], ['classify', {}, 2, 6],
     ['rid', { rules: RULES_BASIC }, 1, 8], ['rcon', { rules: ['MPP', 'MTT', '∧I', '∧E', 'DN'] }, 1, 8],
     ['proof', { lvls: [10, 11] }, 1, 12], ['proof', { lvls: [11] }, 2, 12],
     ['trans', { set: 'cond' }, 2, 8], ['word', {}, 1, 14], ['word', {}, 2, 16]] },
-  D: { t: 'Test na D', goal: 'D', min: 61, desc: 'Tabuľky s 3 premennými a protipríkladom, CP a ∨E, dlhšie dôkazy, slovné úlohy s dôkazom.', items: [
+  D: { t: 'Skúšobný test: stredná náročnosť', name: 'Stredná', goal: 'D', min: 51, desc: 'Tabuľky s 3 premennými a protipríkladom, CP a ∨E, dlhšie dôkazy, slovné úlohy s dôkazom.', items: [
     ['valid', {}, 3, 8], ['table', {}, 3, 8], ['equiv', {}, 3, 6],
     ['rid', { rules: RULES_ALL }, 2, 6], ['rcon', { rules: ['MPP', 'MTT', '∨I', '∨E', 'CP', 'DN'] }, 2, 8],
     ['proof', { lvls: [11, 12, 13] }, 2, 12], ['proof', { lvls: [12, 13] }, 3, 14],
     ['trans', {}, 3, 8], ['word', {}, 3, 12], ['wordproof', {}, 2, 18]] },
-  C: { t: 'Test na C', goal: 'C', min: 71, desc: 'Náročnejšie tabuľky a konzistencia, všetkých 10 pravidiel vrátane RAA, obmeny dôkazov s negáciami, slovné úlohy s dôkazom.', items: [
+  C: { t: 'Skúšobný test: ťažká náročnosť', name: 'Ťažká', goal: 'C', min: 51, desc: 'Náročnejšie tabuľky a konzistencia, všetkých 10 pravidiel vrátane RAA, obmeny dôkazov s negáciami, slovné úlohy s dôkazom.', items: [
     ['valid', {}, 4, 7], ['table', {}, 4, 8], ['consist', {}, 4, 5],
     ['rcon', { rules: ['∨E', 'CP', 'RAA', 'MTT', 'DN'] }, 3, 8],
     ['proof', { lvls: [13, 14] }, 3, 12], ['proof', { lvls: [12, 13, 14], vary: true }, 4, 14], ['proof', { lvls: [14] }, 4, 14],
@@ -1879,7 +2001,7 @@ function startTest(key) {
       return {
         scoreText: `${got} / ${total} b`,
         html: `<div class="grade" style="color:var(${passed ? '--ok' : '--bad'})">${g}</div><p>${pct} % · ${mins} min</p>
-          <p>${passed ? `Úroveň ${T.goal} je zvládnutá.` : `Na ${T.goal} treba aspoň ${T.min} %. Chýba ${T.min - pct} %.`}</p>
+          <p>${passed ? `Test je zvládnutý so známkou ${g}.` : `Na zvládnutie treba aspoň ${T.min} %. Chýba ${T.min - pct} %.`}</p>
           <div class="breakdown">${Object.entries(areas).map(([a, [x, y]]) => `<div><span>${a}</span><span class="fx">${x} / ${y} b</span></div>`).join('')}</div>
           ${weakest && weakest[1][0] < weakest[1][1] ? `<p class="small muted">Najviac bodov sa stratilo v časti ${weakest[0]}.</p>` : ''}
           <p class="scale">Stupnica: A 91 %, B 81 %, C 71 %, D 61 %, E 51 %</p>`,
@@ -1891,17 +2013,21 @@ function startTest(key) {
     },
   });
 }
+let testLevel = 'E';
 function viewTest() {
   const st = S.tests || {};
-  let h = `<div class="stack"><div><h2>Skúšobný test</h2><p class="muted">Tri úrovne podľa známky, ktorú chceš získať. Každý test má 10 úloh z tabuliek hodnôt, pravidiel a slovných úloh a za každú sú body. Úlohy sa zakaždým vygenerujú nanovo, takže test môžeš opakovať.</p></div>
-    <p class="small muted">Počas testu nie je teória ani nápoveda. Či je úloha správne, uvidíš hneď, ale body sa rátajú len za prvý pokus. Na konci dostaneš známku podľa stupnice A až FX.</p><div class="tests">`;
-  for (const k of ['E', 'D', 'C']) {
-    const T = TESTS[k], s = st[k];
-    const total = T.items.reduce((a, x) => a + x[3], 0);
-    h += `<button class="tcard" data-k="${k}"><div class="hd"><span class="g">${k}</span><span class="t" style="font-weight:600">${T.t}</span><span class="small muted">10 úloh · ${total} b · na ${k} treba ${T.min} %</span></div><span class="small">${T.desc}</span>${s ? `<span class="small muted">Najlepšie: ${s.best} % (${gradeOf(s.best)}) · pokusov: ${s.runs}</span>` : ''}</button>`;
-  }
-  appEl.innerHTML = h + '</div></div>';
-  $$('.tcard', appEl).forEach(b => b.addEventListener('click', () => startTest(b.dataset.k)));
+  const T = TESTS[testLevel], s = st[testLevel];
+  const total = T.items.reduce((a, x) => a + x[3], 0);
+  appEl.innerHTML = `<div class="stack"><div><h2>Skúšobný test</h2><p class="muted">Jeden test s tromi úrovňami náročnosti. Má 10 úloh z tabuliek hodnôt, pravidiel a slovných úloh a za každú sú body. Úlohy sa zakaždým vygenerujú nanovo, takže test môžeš opakovať.</p></div>
+    <div class="card stack">
+      <div><label class="lab">Náročnosť</label><div class="diffsel tlev">${['E', 'D', 'C'].map(k => `<button type="button" data-k="${k}" aria-pressed="${testLevel === k}">${TESTS[k].name}</button>`).join('')}</div></div>
+      <p>${T.desc}</p>
+      <p class="small muted">10 úloh · ${total} bodov · známka podľa stupnice A 91 %, B 81 %, C 71 %, D 61 %, E 51 %${s ? ` · najlepší výsledok: ${s.best} % (${gradeOf(s.best)}), pokusov: ${s.runs}` : ''}</p>
+      <div class="row"><button class="btn primary tstart">Začať test</button></div>
+    </div>
+    <p class="small muted">Počas testu nie je teória ani nápoveda, poznámky áno. Či je úloha správne, uvidíš hneď, ale body sa rátajú len za prvý pokus. Na konci dostaneš známku a prehľad, v ktorej časti sa stratilo najviac bodov.</p></div>`;
+  $$('.tlev button', appEl).forEach(b => b.addEventListener('click', () => { testLevel = b.dataset.k; viewTest(); }));
+  $('.tstart', appEl).addEventListener('click', () => startTest(testLevel));
 }
 // ================= TEÓRIA =================
 const pf = (lines, cap) => '<div class="ex">' + (cap ? `<p class="excap">${cap}</p>` : '') + '<div class="proofwrap"><table class="proof"><tbody>' + lines.map(([d, n, f, j, note]) => `<tr><td class="dep">${d}</td><td class="n">(${n})</td><td class="fm">${f}</td><td class="j">${j}</td></tr>` + (note ? `<tr class="note"><td></td><td></td><td colspan="2">${note}</td></tr>` : '')).join('') + '</tbody></table></div></div>';
@@ -2183,7 +2309,8 @@ function unfoldIff(f) {
   const a = unfoldIff(f.a), b = unfoldIff(f.b);
   return f.t === 'iff' ? B('and', B('imp', a, b), B('imp', b, a)) : B(f.t, a, b);
 }
-function autoProve(prem, concl, budget = 150000) {
+function autoProve(prem, concl, opt = {}) {
+  const budget = opt.budget || 150000, DER = !!opt.derived;
   let nodes = 0;
   const mk = (rule, f, subs, x) => Object.assign({ rule, f, k: show(f), subs: subs || [] }, x || {});
   const hyp = (f, why) => mk('H', f, [], { why });
@@ -2198,6 +2325,28 @@ function autoProve(prem, concl, budget = 150000) {
         const f = t.f;
         if (f.t === 'and') { ch = add(mk('∧E', f.a, [t])) || ch; ch = add(mk('∧E', f.b, [t])) || ch; }
         else if (f.t === 'not' && f.a.t === 'not') ch = add(mk('DN', f.a.a, [t])) || ch;
+        else if (f.t === 'iff') {
+          ch = add(mk('Ekviv', B('and', B('imp', f.a, f.b), B('imp', f.b, f.a)), [t])) || ch;
+        }
+        else if (DER && f.t === 'not' && f.a.t === 'or') ch = add(mk('DM', B('and', N(f.a.a), N(f.a.b)), [t])) || ch;
+        else if (DER && f.t === 'not' && f.a.t === 'imp') ch = add(mk('Impl', B('and', f.a.a, N(f.a.b)), [t])) || ch;
+        else if (DER && f.t === 'not' && f.a.t === 'and') {
+          const a = find(ctx, f.a.a), b = find(ctx, f.a.b);
+          if (a) ch = add(mk('MPT', N(f.a.b), [t, a])) || ch;
+          if (b) ch = add(mk('MPT', N(f.a.a), [t, b])) || ch;
+        }
+        else if (DER && f.t === 'or') {
+          const na = find(ctx, N(f.a)), nb = find(ctx, N(f.b));
+          if (na) ch = add(mk('DS', f.b, [t, na])) || ch;
+          if (nb) ch = add(mk('DS', f.a, [t, nb])) || ch;
+          if (!na && f.a.t === 'not' && !find(ctx, f.b)) { const z = find(ctx, f.a.a); if (z) ch = add(mk('DS', f.b, [t, mk('DN', N(N(z.f)), [z])])) || ch; }
+          if (!nb && f.b.t === 'not' && !find(ctx, f.a)) { const z = find(ctx, f.b.a); if (z) ch = add(mk('DS', f.a, [t, mk('DN', N(N(z.f)), [z])])) || ch; }
+          for (const u of ctx) {
+            if (u.f.t !== 'imp' || !eq(u.f.a, f.a)) continue;
+            const w = ctx.find(x => x.f.t === 'imp' && eq(x.f.a, f.b) && eq(x.f.b, u.f.b));
+            if (w && !find(ctx, u.f.b)) { ch = add(mk('JD', u.f.b, [u, w, t])) || ch; break; }
+          }
+        }
         else if (f.t === 'imp') {
           const a = find(ctx, f.a);
           if (a) ch = add(mk('MPP', f.b, [t, a])) || ch;
@@ -2214,6 +2363,7 @@ function autoProve(prem, concl, budget = 150000) {
   }
   const pairIn = ctx => { for (const t of ctx) if (t.f.t === 'not') { const x = find(ctx, t.f.a); if (x) return [x, t]; } return null; };
   function exFalso(G, pr) {
+    if (DER) return mk('ExFals', G, [pr[0], pr[1]]);
     if (G.t === 'not') return mk('RAA', G, [hyp(G.a, 'raa'), pr[0], pr[1]]);
     const r = mk('RAA', N(N(G)), [hyp(N(G), 'raa'), pr[0], pr[1]]);
     return mk('DN', G, [r]);
@@ -2231,6 +2381,19 @@ function autoProve(prem, concl, budget = 150000) {
     if (stack.has(ky)) return null;
     const st = new Set(stack); st.add(ky);
     if (G.t === 'not' && G.a.t === 'not') { const x = find(ctx, G.a.a); if (x) return mk('DN', G, [x]); }
+    if (DER) {
+      if (G.t === 'imp') for (const t of ctx) {
+        if (t.f.t !== 'imp' || !eq(t.f.a, G.a)) continue;
+        const u = ctx.find(x => x.f.t === 'imp' && eq(x.f.a, t.f.b) && eq(x.f.b, G.b));
+        if (u) return mk('HS', G, [t, u]);
+      }
+      for (const r of ['Transp', 'DM', 'Impl', 'Exp']) for (const t of ctx) if (t.f.t !== 'var' && dApply(r, [t.f], G)) return mk(r, G, [t]);
+    }
+    if (G.t === 'iff') {
+      const cj = B('and', B('imp', G.a, G.b), B('imp', G.b, G.a));
+      const c = prove(ctx, cj, d - 1, used, st);
+      return c ? mk('Ekviv', G, [c]) : null;
+    }
     if (G.t === 'and') {
       const a = prove(ctx, G.a, d - 1, used, st);
       if (a) { const b = prove(ctx, G.b, d - 1, used, st); if (b) return mk('∧I', G, [a, b]); }
@@ -2361,6 +2524,11 @@ function explainLine(lines, i, premCount) {
     case 'RAA': return `RAA: predpoklad ${c[0]} viedol k sporu (riadky ${c[1]} a ${c[2]}), takže platí jeho negácia ${fs(l.f)}. Predpoklad ${c[0]} zmizne zo závislostí.`;
     case '∨E': return `∨E: disjunkcia je v riadku ${c[0]}. Z prvého člena (predpoklad ${c[1]}) sme dostali riadok ${c[2]}, z druhého (predpoklad ${c[3]}) riadok ${c[4]}. V oboch prípadoch vyšlo to isté, takže ${fs(l.f)} platí. Predpoklady ${c[1]} a ${c[3]} zmiznú zo závislostí.`;
   }
+  if (DRULES[l.rule]) {
+    const R = DRULES[l.rule];
+    if (l.rule === 'Ekviv') return `Definícia ↔ (v skriptách ↔ def., materiálna ekvivalencia): X ↔ Y je to isté ako (X → Y) ∧ (Y → X). Riadok ${c[0]} prepíšeme na ${fs(l.f)}.`;
+    return `${dLabel(l.rule)} (${R.n}): ${c.length ? `z ${c.length === 1 ? 'riadku' : 'riadkov'} ${c.join(', ').replace(/, ([^,]*)$/, ' a $1')} dostaneme` : 'zavedieme teorému'} ${fs(l.f)}. Schéma: <span class="fx">${dSchema(l.rule)}</span>`;
+  }
   return '';
 }
 
@@ -2438,39 +2606,56 @@ function solveTable(el, task) {
 }
 
 // ---------- dôkaz krok za krokom ----------
-function solveProof(el, task) {
-  const hadIff = task.prem.concat([task.concl]).some(f => hasOp(f, 'iff'));
-  const prem = task.prem.map(unfoldIff), concl = unfoldIff(task.concl);
-  const cex = argCounter(prem, concl);
-  if (cex.length) {
-    const vars = varsOf(...prem, concl);
-    el.innerHTML = `<div class="fb show bad"><h4>Dôkaz neexistuje</h4><p>${task.single ? 'Formula nie je tautológia, takže sa nedá dokázať bez premís.' : 'Argument je neplatný. Pravidlá dovolia odvodiť len to, čo z premís naozaj vyplýva.'} Protipríklad: ${vars.map(x => `${x} = ${cex[0][x] ? 'T' : 'F'}`).join(', ')}${task.single ? ' (formula je F).' : ' (premisy sú T, záver F).'}</p><p>Pozri si to v tabuľke hodnôt.</p></div>`;
-    return;
-  }
-  const lines = autoProve(prem, concl);
-  if (!lines) { el.innerHTML = '<div class="fb show info"><h4>Dôkaz sa nepodarilo nájsť</h4><p>Argument je platný (ukáže to tabuľka hodnôt), ale je príliš zložitý na automatické hľadanie dôkazu. Skús ho rozdeliť na menšie kroky.</p></div>'; return; }
-  const pc = prem.length, fin = lines.final;
-  let step = Math.min(pc, lines.length);
-  if (step === 0) step = 1;
-  const note = hadIff ? '<p class="small muted">Desať základných pravidiel nemá pravidlo pre ↔, preto je X ↔ Y rozpísané podľa definície ako (X → Y) ∧ (Y → X).</p>' : '';
+function proofWalk(el, lines, prem, concl, o = {}) {
+  const pc = prem.length, fin = lines.final || lines.length;
+  const start = Math.max(1, Math.min(pc, lines.length));
+  let step = o.all ? lines.length : start;
+  if (lines.length <= pc) step = lines.length;
   const draw = () => {
     const done = step >= lines.length;
-    const rowsH = lines.slice(0, step).map((l, i) => `<tr class="${l.prem ? 'prem' : ''} ${i === step - 1 && !done ? 'hid' : ''}"><td class="dep">${l.deps.join(',')}</td><td class="n">(${i + 1})</td><td class="fm">${show(l.f)}</td><td class="j">${l.cites.join(',')} ${l.rule}</td></tr>`).join('');
+    const rowsH = lines.slice(0, step).map((l, i) => `<tr class="${l.prem ? 'prem' : ''} ${i === step - 1 && !done ? 'hid' : ''}"><td class="dep">${l.deps.join(',')}</td><td class="n">(${i + 1})</td><td class="fm">${show(l.f)}</td><td class="j">${l.cites.join(',')} ${dLabel(l.rule)}</td></tr>`).join('');
     let ex;
     if (done) {
       ex = `<div class="fb show ok"><h4>Hotovo</h4><p>Riadok ${fin} je záver${pc ? ` a vľavo má len čísla premís (${lines[fin - 1].deps.join(', ') || 'žiadne'})` : ' a nezávisí od žiadneho predpokladu'}, takže dôkaz je úplný.</p></div>
         <ol class="sexpl">${lines.map((l, i) => `<li>${explainLine(lines, i, pc)}</li>`).join('')}</ol>`;
-    } else if (step <= pc && step === Math.min(pc, lines.length)) ex = `<p>${pc ? `Najprv zapíšeme premisy ako riadky 1 až ${pc}.` : ''} Cieľ je odvodiť <b class="fx">${show(concl)}</b>${pc ? ' tak, aby závisel len od premís' : ' bez závislostí'}.</p>`;
+    } else if (step === start && step <= pc) ex = `<p>${pc ? (pc === 1 ? 'Najprv zapíšeme premisu ako riadok 1.' : `Najprv zapíšeme premisy ako riadky 1 až ${pc}.`) : ''} Cieľ je odvodiť <b class="fx">${show(concl)}</b>${pc ? ' tak, aby závisel len od premís' : ' bez závislostí'}. ${proofPlan(prem, concl)}</p>`;
     else ex = `<p><b>Riadok ${step}.</b> ${explainLine(lines, step - 1, pc)}</p>`;
-    el.innerHTML = `${note}<div class="seq">${prem.map(x => show(x)).join(', ')} ⊢ ${show(concl)}</div><div class="proofwrap"><table class="proof"><tbody>${rowsH}</tbody></table></div>
-      <div class="sexp">${ex}</div><div class="row snav">${done ? '<button class="btn sagain">Od začiatku</button>' : '<button class="btn primary snext">Ďalší krok</button><button class="btn sall">Ukázať všetko</button>'}</div>
-      <p class="small muted">Dôkazov býva viac. Toto je jeden správny postup, tvoj môže vyzerať inak a byť tiež správny.</p>`;
+    el.innerHTML = `${o.note || ''}<div class="seq">${prem.map(x => show(x)).join(', ')} ⊢ ${show(concl)}</div><div class="proofwrap"><table class="proof"><tbody>${rowsH}</tbody></table></div>
+      <div class="sexp">${ex}</div><div class="row snav">${done ? '<button class="btn sagain">Od začiatku</button>' : '<button class="btn primary snext">Ďalší krok</button><button class="btn sall">Ukázať všetko</button>'}</div>`;
     const nx = $('.snext', el); if (nx) nx.addEventListener('click', () => { step++; draw(); });
     const al = $('.sall', el); if (al) al.addEventListener('click', () => { step = lines.length; draw(); });
-    const ag = $('.sagain', el); if (ag) ag.addEventListener('click', () => { step = Math.max(1, Math.min(pc, lines.length)); draw(); });
+    const ag = $('.sagain', el); if (ag) ag.addEventListener('click', () => { step = start; draw(); });
   };
-  if (lines.length <= pc) step = lines.length;
   draw();
+}
+// krátky plán podľa tvaru záveru
+function proofPlan(prem, concl) {
+  const s = x => `<b class="fx">${show(x)}</b>`;
+  switch (concl.t) {
+    case 'imp': return `Záver je implikácia, preto si predpokladáme jej antecedent ${s(concl.a)}, odvodíme ${s(concl.b)} a použijeme CP.`;
+    case 'and': return `Záver je konjunkcia, preto odvodíme zvlášť ${s(concl.a)} a ${s(concl.b)} a spojíme ich cez ∧I.`;
+    case 'or': return prem.some(p => p.t === 'or') ? 'V premisách je disjunkcia, preto pravdepodobne pôjde o rozbor prípadov (∨E) a záver vznikne cez ∨I.' : `Záver je disjunkcia. Stačí odvodiť jeden jej člen a použiť ∨I. Ak sa to priamo nedá, predpokladáme negáciu záveru a hľadáme spor (RAA).`;
+    case 'not': return `Záver je negácia. Skúsime MTT, a ak to nejde, predpokladáme ${s(concl.a)} a hľadáme spor (RAA).`;
+    case 'iff': return 'Záver je ekvivalencia, preto dokážeme obe implikácie a spojíme ich.';
+  }
+  return prem.some(p => p.t === 'or') ? 'Záver je jednoduchý výrok. Pozrieme, čo sa dá z premís vybrať priamo (MPP, MTT, ∧E), a disjunkciu rozoberieme na prípady.' : 'Záver je jednoduchý výrok. Pozrieme, čo sa dá z premís vybrať priamo (MPP, MTT, ∧E). Ak to nestačí, predpokladáme jeho negáciu a hľadáme spor.';
+}
+function solveProof(el, task) {
+  const hadIff = task.prem.concat([task.concl]).some(f => hasOp(f, 'iff'));
+  const prem = task.prem, concl = task.concl;
+  const cex = argCounter(prem, concl);
+  if (cex.length) {
+    const vars = varsOf(...prem, concl);
+    el.innerHTML = `<div class="fb show bad"><h4>Dôkaz neexistuje</h4><p>${task.single ? 'Formula nie je tautológia, takže sa nedá dokázať bez premís.' : 'Argument je neplatný. Pravidlá dovolia odvodiť len to, čo z premís naozaj vyplýva.'} Protipríklad: ${vars.map(x => `${x} = ${cex[0][x] ? 'T' : 'F'}`).join(', ')}${task.single ? ' (formula je F).' : ' (premisy sú T, záver F).'}</p><p>Pozri si to v tabuľke hodnôt alebo v pravdivostnom strome.</p></div>`;
+    return;
+  }
+  const lines = autoProve(prem, concl, { derived: !!task.derived });
+  if (!lines) { el.innerHTML = '<div class="fb show info"><h4>Dôkaz sa nepodarilo nájsť</h4><p>Argument je platný (ukáže to tabuľka hodnôt), ale je príliš zložitý na automatické hľadanie dôkazu. Skús ho rozdeliť na menšie kroky.</p></div>'; return; }
+  const note = (hadIff ? '<p class="small muted">Pre ↔ sa používa definícia zo skrípt (↔ def., tu zapísaná ako SI Ekviv): X ↔ Y je to isté ako (X → Y) ∧ (Y → X).</p>' : '');
+  const box = document.createElement('div');
+  el.innerHTML = ''; el.appendChild(box);
+  proofWalk(box, lines, prem, concl, { note });
+  el.insertAdjacentHTML('beforeend', '<p class="small muted" style="margin-top:10px">Dôkazov býva viac. Toto je jeden správny postup, tvoj môže vyzerať inak a byť tiež správny.</p>');
 }
 
 // ---------- obrazovka ----------
@@ -2480,11 +2665,12 @@ function viewSolver() {
     <div class="card stack">
       <div class="fin"><label class="lab" for="sinp">Zadanie</label>
         <input id="sinp" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="napr. P → Q, ¬Q ⊢ ¬P">
-        <div class="keys">${['¬', '∧', '∨', '→', '↔', '(', ')', ',', '⊢'].map(k => `<button type="button" class="op" data-k="${k}">${k}</button>`).join('')}${['P', 'Q', 'R', 'S'].map(k => `<button type="button" data-k="${k}">${k}</button>`).join('')}<button type="button" data-k="⌫" aria-label="Zmazať znak">⌫</button></div>
+        <div class="keys">${['¬', '∧', '∨', '→', '↔', '(', ')', ',', '⊢'].map(k => `<button type="button" class="op" data-k="${k}">${k}</button>`).join('')}<button type="button" data-k="⌫" aria-label="Zmazať znak">⌫</button></div>
+        <div class="keys letters">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(k => `<button type="button" data-k="${k}">${k}</button>`).join('')}</div>
         <div class="parsehint"></div></div>
       <div class="photo" hidden><button class="btn pbtn" type="button">Odfotiť alebo nahrať fotku</button><input type="file" accept="image/*" class="pfile" hidden><div class="pout small"></div></div>
-      <div class="row"><button class="btn primary mtab" data-m="table">Tabuľka hodnôt</button><button class="btn primary mtab" data-m="proof">Dôkaz podľa pravidiel</button></div>
-      <p class="small muted" style="font-feature-settings:'calt' 0,'liga' 0">Premisy oddeľ čiarkou, záver píš za ⊢ (stačí aj |-). Samotná formula bez ⊢ sa berie ako jedna formula. Z klávesnice: -> je →, <-> je ↔, & je ∧, v je ∨, ~ je ¬.</p>
+      <div class="row"><button class="btn primary mtab" data-m="table">Tabuľka hodnôt</button><button class="btn primary mtab" data-m="proof">Dôkaz (10 pravidiel)</button><button class="btn primary mtab" data-m="dproof">Dôkaz so skratkami</button><button class="btn primary mtab" data-m="tree">Pravdivostný strom</button></div>
+      <p class="small muted" style="font-feature-settings:'calt' 0,'liga' 0">Premisy oddeľ čiarkou, záver píš za ⊢ (stačí aj |-). Samotná formula bez ⊢ sa berie ako jedna formula. Použiť môžeš ľubovoľné veľké písmená. Z klávesnice: -> je →, <-> je ↔, & je ∧, v je ∨, ~ je ¬.</p>
     </div>
     <div class="card sout" hidden></div></div>`;
   const inp = $('#sinp', appEl), hint = $('.parsehint', appEl), out = $('.sout', appEl);
@@ -2500,7 +2686,7 @@ function viewSolver() {
     if (!t) { if (!inp.value.trim()) { hint.textContent = 'Najprv napíš formulu alebo argument.'; hint.classList.add('err'); } out.hidden = true; return; }
     solverMode = m; out.hidden = false;
     $$('.mtab', appEl).forEach(b => b.classList.toggle('on', b.dataset.m === m));
-    (m === 'table' ? solveTable : solveProof)(out, t);
+    if (m === 'table') solveTable(out, t); else if (m === 'tree') solveTree(out, t); else solveProof(out, Object.assign({}, t, { derived: m === 'dproof' }));
   };
   inp.addEventListener('input', () => { read(); out.hidden = true; });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') run(solverMode || 'table'); });
@@ -2533,6 +2719,631 @@ function viewSolver() {
   });
   if (solverText) { read(); if (solverMode) run(solverMode); }
 }
+// ================= odvodené pravidlá: precvičovanie =================
+TAGS.si = ['Odvodené pravidlá a skratky (SI)', 'drid'];
+TAGS.tree = ['Pravidlá pravdivostného stromu', 'trule'];
+TAGS.treeread = ['Čítanie pravdivostného stromu', 'tread'];
+const D_BASIC_SET = ['HS', 'DS', 'MPT', 'JD', 'KD', 'DD', 'JDD', 'ŠD', 'CM'];
+const D_EQ_SET = ['DM', 'Impl', 'Transp', 'Exp', 'Com', 'Dist', 'Ekviv'];
+function dInst(rule, d) {
+  const vs = D_PARSED[rule].filter(v => v.p.length);
+  const v = pick(vs);
+  const [a, b, c, e] = metaSubs(Math.min(d, 3), 4);
+  const m = { P: a, Q: b, R: c, S: e };
+  const lines = shuffle(v.p.map(p => subst(p, m))).map((f, i) => ({ f, rule: 'A', cites: [], deps: [i + 1] }));
+  const cites = lines.map((_, i) => i + 1);
+  lines.push({ f: subst(v.c, m), rule, cites, deps: cites.slice() });
+  return lines;
+}
+const dRows = (L, hide) => '<div class="proofwrap"><table class="proof"><tbody>' + L.map((l, i) => {
+  const last = i === L.length - 1;
+  return `<tr class="${last ? 'hid' : ''}"><td class="dep">${last && hide === 'f' ? '<span class="muted">?</span>' : l.deps.join(',')}</td><td class="n">(${i + 1})</td><td class="fm">${last && hide === 'f' ? '<span class="muted">?</span>' : show(l.f)}</td><td class="j">${l.cites.join(',')} ${last && hide === 'r' ? '<b style="color:var(--accent)">?</b>' : dLabel(l.rule)}</td></tr>`;
+}).join('') + '</tbody></table></div>';
+const dInfo = r => `<b>${dLabel(r)}</b> (${DRULES[r].n}): <span class="fx">${dSchema(r)}</span>`;
+GEN.drid = {
+  label: 'Rozpoznaj odvodené pravidlo', desc: 'Ktorá skratka (SI) je použitá v poslednom kroku?',
+  gen(d, o) {
+    const pool = o.rules || D_BASIC_SET.concat(D_EQ_SET);
+    const rule = pick(pool);
+    const L = dInst(rule, d);
+    const others = shuffle(pool.filter(r => r !== rule)).slice(0, 5);
+    const optsR = shuffle([rule].concat(others));
+    const fs = L.slice(0, -1).map(l => l.f), target = L[L.length - 1].f;
+    return {
+      trains: ['si'],
+      mount(el, done) {
+        el.innerHTML = `<p class="q">Ktorým odvodeným pravidlom vznikol posledný riadok?</p>${dRows(L, 'r')}<div class="choices"></div><div class="fb"></div>`;
+        choiceButtons($('.choices', el), optsR.map(r => ({ label: `${r} <span class="small muted">${DRULES[r].n}</span>`, value: r })), u => {
+          const ok = u === rule || !!dApply(u, fs, target);
+          feedback($('.fb', el), ok ? 'ok' : 'bad', ok ? 'Správne' : `Nie, je to ${rule}`, `<p>${dInfo(rule)}</p>` + (!ok ? `<p class="small muted">${dInfo(u)}</p>` : ''));
+          done({ ok, tags: ok ? [] : ['si'] });
+          return ok ? u : rule;
+        });
+      },
+    };
+  },
+};
+GEN.drcon = {
+  label: 'Použi odvodené pravidlo', desc: 'Napíš, čo daná skratka (SI) odvodí',
+  gen(d, o) {
+    const pool = (o.rules || D_BASIC_SET.concat(D_EQ_SET)).filter(r => !['ExFals', 'TC', 'FA', 'TI'].includes(r));
+    const rule = pick(pool);
+    const L = dInst(rule, d);
+    const target = L[L.length - 1], prev = L.slice(0, -1);
+    return {
+      trains: ['si'],
+      mount(el, done) {
+        el.innerHTML = `<p class="q">Doplň formulu posledného riadku.</p>${dRows(L, 'f')}<p class="small muted" style="margin-top:8px">${DRULES[rule].n}</p><div class="ans" style="margin-top:10px"></div><div class="row" style="margin-top:10px"><button class="btn primary chk">Skontrolovať</button><button class="btn ghost show">Ukázať riešenie</button></div><div class="fb"></div>`;
+        const fi = formulaInput(varsOf(...L.map(l => l.f)));
+        $('.ans', el).appendChild(fi.el);
+        let reported = false;
+        const end = r => { if (!reported) { reported = true; done(r); } $('.chk', el).disabled = true; $('.show', el).disabled = true; };
+        $('.chk', el).addEventListener('click', () => {
+          let f;
+          try { f = fi.get(); } catch (e) { feedback($('.fb', el), 'info', 'Formula sa nedá prečítať', `<p>${e.message}</p>`); return; }
+          const res = checkStep(prev, f, rule, target.cites);
+          fi.mark(res.ok);
+          feedback($('.fb', el), res.ok ? 'ok' : 'bad', res.ok ? 'Správne' : 'Ešte nie', (res.ok ? '' : `<p>${res.msg}</p><p>Správne: ${fx(target.f)}</p>`) + `<p class="small muted">${dInfo(rule)}</p>`);
+          end({ ok: res.ok, tags: res.ok ? [] : ['si'] });
+        });
+        $('.show', el).addEventListener('click', () => { feedback($('.fb', el), 'info', 'Riešenie', `<p>${fx(target.f)}</p><p class="small muted">${dInfo(rule)}</p>`); end({ ok: false, tags: ['si'] }); });
+      },
+    };
+  },
+};
+// dôkazy, kde skratky pomáhajú (skriptá, časť D1) [sekvent, náročnosť]
+const BANK_DPROOF = [
+  ['P → Q, Q → R, ¬R ⊢ ¬P', 1], ['P ∨ Q, ¬P, Q → R ⊢ R', 1], ['¬(P ∧ Q), P ⊢ ¬Q', 1], ['P → Q, R → Q, P ∨ R ⊢ Q', 1], ['¬P ⊢ P → Q', 2], ['C ⊢ D → C', 2], ['H → (I ∧ J) ⊢ H → I', 2], ['K → L ⊢ K → (L ∨ M)', 2], ['N → O ⊢ (N ∧ P) → O', 2], ['(Q ∨ R) → S ⊢ Q → S', 2], ['S → T, S ∨ T ⊢ T', 2], ['E → F, E → G ⊢ E → (F ∧ G)', 2], ['¬(P ∨ Q), R → P ⊢ ¬R', 2], ['P → Q, ¬Q ∨ R, P ⊢ R', 2],
+  ['E → (F → G) ⊢ F → (E → G)', 3], ['T → ¬(U → W) ⊢ T → U', 3], ['W → (X ∧ ¬Y) ⊢ W → (Y → X)', 3], ['H → (I ∨ J), ¬I ⊢ H → J', 3], ['E → F, G → F ⊢ (E ∨ G) → F', 3], ['A → (B → C), C → (D ∧ E) ⊢ A → (B → D)', 3], ['O → (P → Q), P → (Q → R) ⊢ O → (P → R)', 3], ['P → Q, R → S, ¬Q ∨ ¬S ⊢ ¬P ∨ ¬R', 3], ['¬(P → Q), Q ∨ R ⊢ R', 3],
+  ['A → ¬(B → C), (D ∧ B) → C, D ⊢ ¬A', 4], ['(¬U ∨ W) ∧ (U ∨ Z), ¬X → ¬Z ⊢ W ∨ X', 4], ['S → (T ∧ U), (T ∨ U) → W, ¬S ∨ (T ∧ U) ⊢ S → W', 4], ['¬W ∨ ((X → Y) ∧ (Z → Y)), W ∧ (X ∨ Z) ⊢ Y', 4], ['(A ∨ B) → (C ∧ D), ¬A → (E → ¬E), ¬C ⊢ ¬E', 4], ['Q ∨ (R ∧ S), (Q → T) ∧ (T → S) ⊢ S', 4], ['(U → W) ∧ (Y → X) ⊢ (U ∨ Y) → (W ∨ X)', 4], ['(Y → Z) ∧ (A → B) ⊢ (Y ∧ A) → (Z ∧ B)', 4],
+  ['((H ∧ I) → J) ∧ (¬K → (I ∧ ¬J)) ⊢ H → K', 5], ['(L ∧ (M ∨ N)) → (M ∧ N) ⊢ L → (M → N)', 5], ['(C → D) ∧ (E → F), G → (C ∨ E) ⊢ G → (D ∨ F)', 5], ['(K ∨ L) → ¬(M ∧ N), (¬M ∨ ¬N) → (O ↔ P), (O ↔ P) → (Q ∧ R) ⊢ (L ∨ K) → (R ∧ Q)', 5],
+];
+GEN.dproof = {
+  label: 'Dôkazy so skratkami', desc: 'Dokáž sekvent základnými aj odvodenými pravidlami',
+  gen(d) {
+    const near = BANK_DPROOF.filter(p => Math.abs(p[1] - d) <= 1);
+    const [seq] = pick(near.length ? near : BANK_DPROOF);
+    const { prem, concl } = parseSeq(seq);
+    return {
+      trains: ['si', 'cite'],
+      mount(el, done) {
+        el.innerHTML = '<p class="q">Nájdi dôkaz. Môžeš použiť základné pravidlá aj odvodené (SI) a teorémy (TI). Skratka sa používa na celý riadok.</p><div class="pb"></div>';
+        proofBuilder($('.pb', el), prem, concl, done, { derived: true });
+      },
+    };
+  },
+};
+
+// ================= pravdivostný strom =================
+function treeRule(f) {
+  const n = x => N(x);
+  switch (f.t) {
+    case 'and': return { br: false, parts: [[f.a, f.b]], why: 'Konjunkcia platí, len keď platia oba členy, preto ich napíšeme pod seba na tú istú vetvu.' };
+    case 'or': return { br: true, parts: [[f.a], [f.b]], why: 'Disjunkcia platí, keď platí aspoň jeden člen, preto sa strom vetví: vľavo prvý člen, vpravo druhý.' };
+    case 'imp': return { br: true, parts: [[n(f.a)], [f.b]], why: 'Implikácia platí, keď neplatí antecedent alebo platí konzekvent, preto sa vetví na negáciu antecedentu a konzekvent.' };
+    case 'iff': return { br: true, parts: [[f.a, f.b], [n(f.a), n(f.b)]], why: 'Ekvivalencia platí, keď majú obe strany rovnakú hodnotu: buď obe platia (ľavá vetva), alebo obe neplatia (pravá vetva).' };
+    case 'not': {
+      const g = f.a;
+      switch (g.t) {
+        case 'not': return { br: false, parts: [[g.a]], why: 'Dvojitá negácia sa zruší.' };
+        case 'and': return { br: true, parts: [[n(g.a)], [n(g.b)]], why: 'Konjunkcia neplatí, keď neplatí aspoň jeden člen, preto sa vetví na negácie oboch členov.' };
+        case 'or': return { br: false, parts: [[n(g.a), n(g.b)]], why: 'Disjunkcia neplatí, len keď neplatí ani jeden člen, preto pod seba napíšeme negácie oboch.' };
+        case 'imp': return { br: false, parts: [[g.a, n(g.b)]], why: 'Implikácia neplatí v jedinom prípade: antecedent platí a konzekvent nie. Oboje napíšeme pod seba.' };
+        case 'iff': return { br: true, parts: [[g.a, n(g.b)], [n(g.a), g.b]], why: 'Ekvivalencia neplatí, keď majú strany rôznu hodnotu: buď platí len ľavá, alebo len pravá.' };
+      }
+    }
+  }
+  return null;
+}
+function buildTree(roots, maxSteps = 60) {
+  let n = 0, stepNo = 0;
+  const steps = [null];
+  const item = (f, from, step) => ({ f, n: ++n, from, step, tick: 0 });
+  const root = { items: roots.map(f => item(f, 0, 0)), kids: [] };
+  let over = false;
+  const contra = path => { for (const a of path) if (a.f.t === 'not') { const b = path.find(x => eq(x.f, a.f.a)); if (b) return [b.n, a.n]; } return null; };
+  function grow(node, path, done) {
+    for (;;) {
+      const c = contra(path);
+      if (c) { node.closed = { a: c[0], b: c[1], step: stepNo }; return; }
+      const cand = path.filter(it => !done.has(it.n) && treeRule(it.f));
+      if (!cand.length) {
+        const v = {};
+        path.forEach(it => { if (it.f.t === 'var') v[it.f.n] = true; else if (it.f.t === 'not' && it.f.a.t === 'var') v[it.f.a.n] = false; });
+        node.open = { v, step: stepNo }; return;
+      }
+      if (stepNo >= maxSteps) { over = true; node.cut = true; return; }
+      const it = cand.find(x => !treeRule(x.f).br) || cand[0];
+      const r = treeRule(it.f);
+      const st = ++stepNo;
+      if (!it.tick) it.tick = st;
+      steps.push({ src: it, r });
+      done = new Set(done); done.add(it.n);
+      if (!r.br) {
+        const add = r.parts[0].map(f => item(f, it.n, st));
+        node.items.push(...add); path = path.concat(add);
+      } else {
+        // najprv očíslujeme oba konce, potom rastieme
+        node.kids = r.parts.map(ps => ({ items: ps.map(f => item(f, it.n, st)), kids: [] }));
+        node.kids.forEach(k => grow(k, path.concat(k.items), done));
+        return;
+      }
+    }
+  }
+  grow(root, root.items.slice(), new Set());
+  const leaves = [];
+  (function walk(nd) { if (nd.kids.length) nd.kids.forEach(walk); else leaves.push(nd); })(root);
+  return { root, steps, total: stepNo, leaves, over, closed: leaves.every(l => l.closed) };
+}
+function treeHTML(T, lim, o = {}) {
+  const end = lim >= T.total;
+  const rec = nd => {
+    const its = nd.items.filter(it => it.step <= lim);
+    if (!its.length) return '';
+    let h = '<div class="tn"><div class="tits">' + its.map(it => `<div class="ti ${o.hl === it.n ? 'hl' : ''} ${it.step === lim && lim > 0 && !o.noNew ? 'new' : ''}"><span class="tnn">${it.n}.</span><span class="fx">${show(it.f)}</span>${it.tick && it.tick <= lim ? '<span class="tck" title="rozložené">✓</span>' : ''}${it.from ? `<span class="tfr">z ${it.from}</span>` : ''}</div>`).join('') + '</div>';
+    if (!o.noMarks) {
+      if (nd.closed && nd.closed.step <= lim && !nd.kids.length) h += `<div class="tx" title="uzavretá vetva">✕<span>${nd.closed.a}, ${nd.closed.b}</span></div>`;
+      if (nd.open && end) h += '<div class="to">otvorená</div>';
+    }
+    const kids = nd.kids.map(rec).filter(Boolean);
+    if (kids.length) h += '<div class="tk">' + kids.map(k => `<div class="tkc">${k}</div>`).join('') + '</div>';
+    return h + '</div>';
+  };
+  return `<div class="treewrap"><div class="tree">${rec(T.root)}</div></div>`;
+}
+const treeRoots = task => (task.single ? [N(task.concl)] : task.prem.concat([N(task.concl)]));
+function treeVerdict(T, task) {
+  const open = T.leaves.find(l => l.open);
+  const vars = varsOf(...task.prem, task.concl);
+  if (T.over) return '<div class="fb show info"><h4>Strom je príliš veľký</h4><p>Tento strom má veľa vetiev. Skús tabuľku hodnôt.</p></div>';
+  if (!open) return `<div class="fb show ok"><h4>${task.single ? 'Formula je tautológia' : 'Argument je platný'}</h4><p>Všetky vetvy sa uzavreli (✕), teda každá obsahuje nejakú formulu aj jej negáciu. ${task.single ? 'Predpoklad, že formula neplatí, vedie vždy k sporu.' : 'Predpoklad, že premisy platia a záver nie, vedie vždy k sporu.'}</p></div>`;
+  const val = vars.map(x => `${x} = ${open.open.v[x] === false ? 'F' : 'T'}`).join(', ');
+  const free = vars.filter(x => open.open.v[x] === undefined);
+  return `<div class="fb show bad"><h4>${task.single ? 'Formula nie je tautológia' : 'Argument je neplatný'}</h4><p>Aspoň jedna vetva zostala otvorená: všetko je v nej rozložené a spor sa nenašiel. Z jej jednoduchých výrokov a negácií prečítame protipríklad: ${val}${free.length ? ` (hodnota ${free.join(', ')} môže byť ľubovoľná)` : ''}. ${task.single ? 'Pri týchto hodnotách je formula F.' : 'Pri týchto hodnotách sú premisy T a záver F.'}</p></div>`;
+}
+function solveTree(el, task) {
+  const T = buildTree(treeRoots(task));
+  let step = 0;
+  const s = x => `<b class="fx">${show(x)}</b>`;
+  const draw = () => {
+    const done = step >= T.total;
+    let ex;
+    if (step === 0 && !done) ex = `<p>${task.single ? `Chceme zistiť, či je formula tautológia. Na začiatok stromu napíšeme jej <b>negáciu</b>. Ak sa všetky vetvy uzavrú, formula nemôže byť nepravdivá, teda je tautológia.` : `Na začiatok stromu napíšeme premisy a <b>negáciu záveru</b> (riadok ${T.root.items.length}). Pýtame sa, či môžu premisy platiť a záver nie. Ak sa všetky vetvy uzavrú, nemôžu, a argument je platný.`}</p>`;
+    else if (!done || step > 0 && !done) { const st = T.steps[step]; ex = `<p><b>Krok ${step} z ${T.total}.</b> Rozkladáme riadok ${st.src.n}, ${s(st.src.f)}. ${st.r.why}</p>`; }
+    if (done) ex = (T.total ? `<p class="small muted">Vetva sa uzavrie (✕), keď je na nej nejaká formula aj jej negácia. Čísla pri ✕ ukazujú, ktoré dva riadky sú v spore.</p>` : '') + treeVerdict(T, task);
+    el.innerHTML = treeHTML(T, step) + `<div class="sexp">${ex}</div><div class="row snav">${done ? (T.total ? '<button class="btn sagain">Od začiatku</button>' : '') : '<button class="btn primary snext">Ďalší krok</button><button class="btn sall">Ukázať všetko</button>'}</div>`;
+    const nx = $('.snext', el); if (nx) nx.addEventListener('click', () => { step++; draw(); });
+    const al = $('.sall', el); if (al) al.addEventListener('click', () => { step = T.total; draw(); });
+    const ag = $('.sagain', el); if (ag) ag.addEventListener('click', () => { step = 0; draw(); });
+  };
+  draw();
+}
+// možnosti rozkladu (správna + zavádzajúce)
+function treeOptions(f) {
+  const r = treeRule(f);
+  const g = f.t === 'not' ? f.a : f;
+  const X = g.a, Y = g.b, n = x => N(x);
+  const key = o => (o.br ? 'B' : 'N') + o.parts.map(p => p.map(x => show(x)).join(',')).join('|');
+  const all = [
+    { br: false, parts: [[X, Y]] }, { br: false, parts: [[n(X), n(Y)]] }, { br: false, parts: [[X, n(Y)]] },
+    { br: true, parts: [[X], [Y]] }, { br: true, parts: [[n(X)], [n(Y)]] }, { br: true, parts: [[n(X)], [Y]] },
+    { br: true, parts: [[X, Y], [n(X), n(Y)]] }, { br: true, parts: [[X, n(Y)], [n(X), Y]] },
+  ];
+  const right = key(r);
+  const wrong = shuffle(all.filter(o => key(o) !== right)).slice(0, 3);
+  const lab = o => (o.br ? `<span class="small muted">vetví sa:</span> <span class="fx">${o.parts.map(p => p.map(x => show(x)).join(', ')).join(' &nbsp;|&nbsp; ')}</span>` : `<span class="small muted">bez vetvenia:</span> <span class="fx">${o.parts[0].map(x => show(x)).join(', ')}</span>`);
+  return { opts: shuffle([{ br: r.br, parts: r.parts }].concat(wrong)).map(o => ({ label: lab(o), value: key(o) })), right };
+}
+function treeFormula(d) {
+  const [X, Y] = metaSubs(Math.min(d, 3), 2);
+  const shapes = d <= 1 ? ['and', 'or', 'imp'] : ['and', 'or', 'imp', 'iff', 'nand', 'nor', 'nimp', 'niff'];
+  const sh = pick(shapes);
+  const f = B(['nand', 'nor', 'nimp', 'niff'].includes(sh) ? sh.slice(1) : sh, X, Y);
+  return ['nand', 'nor', 'nimp', 'niff'].includes(sh) ? N(f) : f;
+}
+GEN.trule = {
+  label: 'Strom: pravidlá rozkladu', desc: 'Ako sa formula rozloží v pravdivostnom strome?',
+  gen(d) {
+    const f = treeFormula(d);
+    const { opts, right } = treeOptions(f);
+    const r = treeRule(f);
+    return {
+      trains: ['tree'],
+      mount(el, done) {
+        el.innerHTML = `<p class="q">Ako sa v pravdivostnom strome rozloží táto formula?</p><div class="big">${show(f)}</div><div class="choices col"></div><div class="fb"></div>`;
+        choiceButtons($('.choices', el), opts, u => {
+          const ok = u === right;
+          feedback($('.fb', el), ok ? 'ok' : 'bad', ok ? 'Správne' : 'Nie', `<p>${r.why}</p>` + treeHTML(buildTree([f], 1), 1, { noMarks: true }));
+          done({ ok, tags: ok ? [] : ['tree'] });
+          return right;
+        });
+      },
+    };
+  },
+};
+function treeArg(d, maxSteps) {
+  for (let k = 0; k < 80; k++) {
+    let prem, concl;
+    const r = Math.random();
+    if (d <= 2 || r < 0.45) { const fm = pick(ARG_FORMS); const subs = metaSubs(1, 3); prem = fm[0].map(s => inst(s, subs)); concl = inst(fm[1], subs); }
+    else if (r < 0.75) { const [p, c] = pick(BANK_VALID); prem = p.map(P); concl = P(c); }
+    else ({ prem, concl } = parseSeq(pick(BANK_PROOF.filter(x => x[2] <= d))[0]));
+    const task = { prem, concl, single: false };
+    const T = buildTree(treeRoots(task));
+    if (T.over || T.total < 2 || T.total > maxSteps) continue;
+    return { task, T };
+  }
+  const task = { prem: [P('P → Q'), P('Q')], concl: P('P'), single: false };
+  return { task, T: buildTree(treeRoots(task)) };
+}
+GEN.tread = {
+  label: 'Strom: čítanie výsledku', desc: 'Z hotového stromu urč, či je argument platný',
+  gen(d) {
+    const { task, T } = treeArg(d, 4 + d * 2);
+    const valid = T.closed;
+    return {
+      trains: ['treeread'],
+      mount(el, done) {
+        el.innerHTML = `<p class="q">Toto je hotový strom pre argument nižšie (premisy a negácia záveru). Značky uzavretia chýbajú. Je argument platný?</p><div class="seq">${task.prem.map(x => show(x)).join(', ')} ⊢ ${show(task.concl)}</div><div class="tv0">${treeHTML(T, T.total, { noMarks: true, noNew: true })}</div><div class="choices"></div><div class="fb"></div>`;
+        choiceButtons($('.choices', el), [{ label: 'Platný (všetky vetvy sa uzavrú)', value: true }, { label: 'Neplatný (zostane otvorená vetva)', value: false }], u => {
+          const ok = u === valid;
+          $('.tv0', el).innerHTML = treeHTML(T, T.total, { noNew: true });
+          const fbEl = $('.fb', el);
+          fbEl.className = 'fb show ' + (ok ? 'ok' : 'bad');
+          fbEl.innerHTML = `<h4>${ok ? 'Správne' : 'Nie'}</h4><p>V strome sú teraz doplnené značky. Vetva je uzavretá, keď obsahuje formulu aj jej negáciu.</p>` + treeVerdict(T, task).replace('class="fb show', 'class="fbin');
+          done({ ok, tags: ok ? [] : ['treeread'] });
+          return valid;
+        });
+      },
+    };
+  },
+};
+GEN.tbuild = {
+  label: 'Strom: stavba krok za krokom', desc: 'Postav strom pre argument a rozhodni o platnosti',
+  gen(d) {
+    const { task, T } = treeArg(d, 3 + d * 2);
+    return {
+      trains: ['tree', 'treeread'],
+      mount(el, done) {
+        let step = 0, errs = 0;
+        const tags = [];
+        el.innerHTML = `<p class="q">Postav pravdivostný strom. Na začiatku sú premisy a negácia záveru.</p><div class="seq">${task.prem.map(x => show(x)).join(', ')} ⊢ ${show(task.concl)}</div><div class="tv0"></div><div class="tq"></div><div class="fb"></div>`;
+        const ask = () => {
+          if (step >= T.total) return verdict();
+          const st = T.steps[step + 1];
+          $('.tv0', el).innerHTML = treeHTML(T, step, { hl: st.src.n, noNew: true });
+          if (st.src.f.t === 'not' && st.src.f.a.t === 'not') { step++; return ask(); }
+          const { opts, right } = treeOptions(st.src.f);
+          $('.tq', el).innerHTML = `<p class="q" style="margin-top:12px">Krok ${step + 1} z ${T.total}: ako sa rozloží riadok ${st.src.n}, <span class="fx">${show(st.src.f)}</span>?</p><div class="choices col"></div>`;
+          choiceButtons($('.choices', $('.tq', el)), opts, u => {
+            const ok = u === right;
+            if (!ok) { errs++; tags.push('tree'); }
+            feedback($('.fb', el), ok ? 'ok' : 'bad', ok ? 'Správne' : 'Nie', `<p>${st.r.why}</p>`);
+            step++;
+            const nb = document.createElement('button'); nb.className = 'btn primary ok2'; nb.style.marginTop = '10px'; nb.textContent = 'Pokračovať';
+            nb.addEventListener('click', () => { $('.fb', el).className = 'fb'; ask(); });
+            $('.tq', el).appendChild(nb);
+            $('.tv0', el).innerHTML = treeHTML(T, step);
+            return right;
+          });
+        };
+        const verdict = () => {
+          $('.tv0', el).innerHTML = treeHTML(T, T.total, { noMarks: true, noNew: true });
+          $('.tq', el).innerHTML = '<p class="q" style="margin-top:12px">Strom je hotový. Skontroluj vetvy: je argument platný?</p><div class="choices"></div>';
+          choiceButtons($('.choices', $('.tq', el)), [{ label: 'Platný', value: true }, { label: 'Neplatný', value: false }], u => {
+            const ok = u === T.closed;
+            if (!ok) tags.push('treeread');
+            $('.tv0', el).innerHTML = treeHTML(T, T.total, { noNew: true });
+            const fbEl = $('.fb', el);
+            fbEl.className = 'fb show ' + (ok ? 'ok' : 'bad');
+            fbEl.innerHTML = `<h4>${ok ? 'Správne' : 'Nie'}</h4>` + treeVerdict(T, task).replace('class="fb show', 'class="fbin');
+            done({ ok: ok && errs === 0, tags });
+            return T.closed;
+          });
+        };
+        ask();
+      },
+    };
+  },
+};
+
+// ================= ťažké príklady =================
+const HARD_FORMS = [
+  [['X → Y', 'Z → W', 'X ∨ Z', '¬Y'], 'W'], [['X → (Y ∧ Z)', 'Z → W', '¬W ∨ U', 'X'], 'U'], [['(X ∨ Y) → Z', 'Z → ¬W', 'W'], '¬X ∧ ¬Y'],
+  [['X → Y', 'Y → Z', '¬Z ∨ W', '¬W'], '¬X'], [['X ∨ Y', 'X → Z', 'Y → W', '¬Z'], 'Y ∧ W'], [['X → (Y → Z)', 'X ∧ Y', 'Z → W'], 'W'],
+  [['¬(X ∧ Y)', 'Z → X', 'W → Y', 'Z'], '¬W'], [['X → Y', '¬X → Z', '¬Y', 'Z → W'], 'W'], [['(X ∧ Y) → Z', '¬Z', 'X', 'Y ∨ W'], 'W'],
+  [['X → (Y ∨ Z)', 'Y → W', 'Z → W', 'X'], 'W'], [['X → Y', 'Z → ¬Y', 'X ∨ W', 'Z'], 'W'], [['X ∨ Y', 'X → Z', 'Y → Z', 'Z → W'], 'W'],
+  [['X → Y', 'Y → Z', 'Z → W'], '¬W → ¬X'], [['X → (Y ∧ Z)', '(Y ∨ W) → U'], 'X → U'], [['X ↔ Y', 'Y → Z', '¬Z'], '¬X'],
+  [['X → Y', 'Z → W', '¬Y ∨ ¬W'], '¬X ∨ ¬Z'], [['¬X → Y', 'Y → Z', '¬Z'], 'X ∧ ¬Y'], [['X → (Y → Z)', '¬Z', 'Y ∨ W', 'X'], 'W'],
+  [['X → Y', 'Z → W', 'X ∨ Z'], 'Y ∨ W'], [['(X ∨ Y) → (Z ∧ W)', '¬Z'], '¬X'], [['X → (Y ∨ Z)', '¬Y', '¬Z ∨ W'], 'X → W'],
+  [['X → Y', '(Y ∧ Z) → W', 'Z'], 'X → W'], [['X ∨ (Y ∧ Z)', 'X → W', 'Z → W'], 'W'], [['X → ¬Y', 'Z → Y', 'W → X', 'Z'], '¬W'],
+];
+// úlohy zo skrípt (časť F) so vzorovým prekladom
+const HARD_BANK = [
+  { g: { O: 'lekári odpoja smrteľne chorých pacientov z prístrojov', V: 'lekári riskujú obvinenie z vraždy', B: 'lekári predlžujú bolesť a utrpenie pacientov' }, s: [['Ak lekári odpoja z prístrojov smrteľne chorých pacientov, riskujú, že budú obvinení z vraždy; ale ak ich neodpoja z prístrojov, predlžujú bolesť a utrpenie pacientov.', '(O → V) ∧ (¬O → B)'], ['Lekári smrteľne chorých pacientov musia urobiť jedno alebo druhé (odpojiť ich, alebo neodpojiť).', 'O ∨ ¬O'], ['Preto riskujú obvinenie z vraždy, alebo predlžujú bolesť a utrpenie svojich pacientov.', 'V ∨ B']] },
+  { g: { K: 'korporácie zostanú konkurencieschopné', M: 'korporácie míňajú peniaze na neutralizáciu toxického odpadu', Z: 'životné prostredie sa zachová' }, s: [['Ak korporácie majú zostať konkurencieschopné, nesmú míňať peniaze na neutralizáciu svojho toxického odpadu; ale ak sa má zachovať životné prostredie, korporácie by mali míňať peniaze na neutralizáciu svojho toxického odpadu.', '(K → ¬M) ∧ (Z → M)'], ['Korporácie budú alebo nebudú míňať peniaze na neutralizáciu svojho toxického odpadu.', 'M ∨ ¬M'], ['Preto nezostanú konkurencieschopné alebo sa nezachová životné prostredie.', '¬K ∨ ¬Z']] },
+  { g: { U: 'vstúpite do učiteľskej profesie', P: 'budete mať peniaze na dovolenku', C: 'budete mať čas na dovolenku' }, s: [['Ak vstúpite do učiteľskej profesie, nebudete mať peniaze na dovolenku; a ak nevstúpite do učiteľskej profesie, nebudete mať čas na dovolenku.', '(U → ¬P) ∧ (¬U → ¬C)'], ['Musíte vstúpiť do učiteľskej profesie, alebo nie.', 'U ∨ ¬U'], ['Z toho vyplýva, že nebudete mať peniaze alebo nebudete mať čas na dovolenku.', '¬P ∨ ¬C']] },
+  { g: { C: 'došlo k poklesu cien', M: 'došlo k nárastu miezd', T: 'maloobchodné tržby sa zvýšili', R: 'reklamné aktivity sa zvýšili', V: 'zamestnanci na zmluvu zarábajú viac' }, s: [['Ak došlo k poklesu cien alebo k nárastu miezd, tak sa zvýšili aj maloobchodné tržby a reklamné aktivity.', '(C ∨ M) → (T ∧ R)'], ['Ak sa maloobchodné tržby zvýšili, potom zamestnanci na zmluvu zarábajú viac, ale je pravdou aj to, že zamestnanci na zmluvu nezarábajú viac.', '(T → V) ∧ ¬V'], ['Preto nedošlo k poklesu cien.', '¬C']] },
+  { g: { Z: 'zníži sa financovanie výskumu jadrovej fúzie', V: 'v laboratóriu sa dosiahnu dostatočne vysoké teploty', R: 'jadrová fúzia sa stane realitou', D: 'dodávka vodíkových palív je obmedzená', E: 'svetové energetické problémy sa vyriešia' }, s: [['Zníži sa financovanie výskumu jadrovej fúzie, alebo ak sa v laboratóriu dosiahnu dostatočne vysoké teploty, jadrová fúzia sa stane realitou.', 'Z ∨ (V → R)'], ['Dodávka vodíkových palív je obmedzená, alebo ak sa jadrová fúzia stane realitou, svetové energetické problémy sa vyriešia.', 'D ∨ (R → E)'], ['Financovanie výskumu jadrovej fúzie sa nezníži.', '¬Z'], ['Dodávka vodíkových palív nie je obmedzená.', '¬D'], ['Preto ak sa v laboratóriu dosiahnu dostatočne vysoké teploty, vyriešia sa energetické problémy sveta.', 'V → E']] },
+  { g: { S: 'priemerné dieťa sleduje televíziu viac ako päť hodín denne', P: 'predstavivosť dieťaťa sa zlepší', V: 'dieťa sa stane závislým od neustáleho vzrušenia' }, s: [['Ak priemerné dieťa sleduje televíziu viac ako päť hodín denne, potom sa zlepší jeho predstavivosť, alebo sa stane závislým od očakávania neustáleho vzrušenia.', 'S → (P ∨ V)'], ['Predstavivosť priemerného dieťaťa sa sledovaním televízie nezlepšuje.', '¬P'], ['Priemerné dieťa sleduje televíziu viac ako päť hodín denne.', 'S'], ['Preto je priemerné dieťa závislé od očakávania neustáleho vzrušenia.', 'V']] },
+  { g: { E: 'existuje desiata planéta', K: 'jej obežná dráha je kolmá na dráhu ostatných planét', D: 'desiata planéta je zodpovedná za vymretie dinosaurov' }, s: [['Ak existuje desiata planéta, potom je jej obežná dráha kolmá na dráhu ostatných planét.', 'E → K'], ['Desiata planéta je zodpovedná za vymretie dinosaurov alebo jej obežná dráha nie je kolmá na dráhu ostatných planét.', 'D ∨ ¬K'], ['Desiata planéta nie je zodpovedná za vymretie dinosaurov.', '¬D'], ['Preto neexistuje desiata planéta.', '¬E']] },
+  { g: { P: 'väznice sú preplnené', T: 'ťažké prípady nebudú vo výkone trestu', K: 'kriminalita narastie', N: 'nebudú vybudované žiadne nové väznice', O: 'doplatia na to nevinné obete' }, s: [['Ak sú väznice preplnené, potom ťažké prípady nebudú vo výkone trestu.', 'P → T'], ['Ak sú väznice preplnené a ťažké prípady nebudú vo výkone trestu, narastie kriminalita.', '(P ∧ T) → K'], ['Ak nebudú vybudované žiadne nové väznice a kriminalita narastá, potom na to doplatia nevinné obete.', '(N ∧ K) → O'], ['To znamená, že ak sú väznice preplnené a nebudú vybudované žiadne nové väznice, doplatia na to nevinné obete.', '(P ∧ N) → O']] },
+  { g: { R: 'psychoterapeuti rešpektujú právo klientov na dôvernosť', O: 'psychoterapeuti oznámia zneužívanie detí úradom', Z: 'psychoterapeuti majú záujem o blahobyt detí' }, s: [['Ak psychoterapeuti rešpektujú právo svojich klientov na dôvernosť, tak neoznámia zneužívanie detí štátnym úradom; ale ak majú nejaký záujem o blahobyt detí, tak to ohlásia.', '(R → ¬O) ∧ (Z → O)'], ['Psychoterapeuti musia zneužívanie detí hlásiť alebo nehlásiť.', 'O ∨ ¬O'], ['Preto psychoterapeuti nerešpektujú právo klientov na dôvernosť alebo nemajú záujem o blahobyt detí.', '¬R ∨ ¬Z']] },
+  { g: { P: 'pracujem', Z: 'zarobím si peniaze', L: 'leňoším', S: 'využijem čas pre seba' }, s: [['Ak pracujem, zarobím si peniaze, ale ak leňoším, potom využijem čas pre seba.', '(P → Z) ∧ (L → S)'], ['Pracujem alebo leňoším.', 'P ∨ L'], ['Ak však pracujem, nemám čas pre seba, zatiaľ čo keď leňoším, nič nezarobím.', '(P → ¬S) ∧ (L → ¬Z)'], ['Preto využijem čas pre seba vtedy a len vtedy, keď nič nezarobím.', 'S ↔ ¬Z']] },
+];
+const dnCollapse = f => (f.t === 'var' ? f : f.t === 'not' ? (f.a.t === 'not' ? dnCollapse(f.a.a) : N(dnCollapse(f.a))) : B(f.t, dnCollapse(f.a), dnCollapse(f.b)));
+function genHard() {
+  if (Math.random() < 0.3) return pick(HARD_BANK);
+  for (let k = 0; k < 40; k++) {
+    const [ps, c] = pick(HARD_FORMS);
+    const sch = pick(WORD_SCHEMAS);
+    const keys = shuffle(Object.keys(sch));
+    const m = {};
+    ['X', 'Y', 'Z', 'W', 'U'].forEach((x, i) => { m[x] = Math.random() < 0.25 ? N(V(keys[i])) : V(keys[i]); });
+    const prem = shuffle(ps.map(s => dnCollapse(subst(P(s), m)))), concl = dnCollapse(subst(P(c), m));
+    if (argCounter(prem, concl).length) continue;
+    const s = prem.map(f => [cap(renderSk(f, sch, true)) + '.', show(f)]);
+    s.push([pick(['Preto ', 'Teda ', 'Z toho vyplýva, že ']) + renderSk(concl, sch, true) + '.', show(concl)]);
+    const used = varsOf(...prem, concl);
+    return { g: Object.fromEntries(used.map(x => [x, sch[x][0]])), s };
+  }
+  return pick(HARD_BANK);
+}
+function explainTrans(text, f) {
+  const t = ' ' + text.toLowerCase(), out = [];
+  const has = (...xs) => xs.some(x => t.includes(x));
+  const walk = (g, top) => {
+    if (g.t === 'var') return;
+    if (g.t === 'not') { if (g.a.t !== 'var' && !out.includes(NEGP)) out.push(NEGP); walk(g.a, false); return; }
+    const msg = {
+      imp: has('iba ak', 'len ak', 'len vtedy', 'iba vtedy', 'len keď') ? '„Iba ak“ a „len vtedy, keď“ uvádzajú <b>nutnú podmienku</b>. Tá patrí za šípku (do konzekventu): „A, iba ak B“ je A → B.'
+        : has('dostatočnou podmienkou') ? '<b>Dostatočná podmienka</b> patrí pred šípku (do antecedentu). Pravidlo D → N.'
+        : has('nutnou podmienkou') ? '<b>Nutná podmienka</b> patrí za šípku (do konzekventu). Pravidlo D → N.'
+        : /^\s*(ak|pokiaľ|keď)\b/.test(t) || has('; ale ak', ', a ak', '; a ak', 'preto ak', 'že ak') ? 'Za slovom „ak“ (pokiaľ, keď) je <b>antecedent</b>, za „potom“ alebo „tak“ je <b>konzekvent</b>: ak A, potom B je A → B.'
+        : has(', ak ', ' ak ') ? 'Slovo „ak“ je až v druhej časti vety, ale stále uvádza antecedent: „B, ak A“ je A → B.' : 'Podmienková veta sa prekladá ako implikácia: podmienka → dôsledok.',
+      and: 'Spojky „a“, „ale“, „a zároveň“, „hoci“, „zatiaľ čo“ sa prekladajú ako konjunkcia ∧.',
+      or: '„Alebo“ je disjunkcia ∨ (inkluzívna, môžu platiť aj oba členy).',
+      iff: '„Vtedy a len vtedy, keď“ a „práve vtedy, keď“ sa prekladajú ako ekvivalencia ↔.',
+    }[g.t];
+    if (!out.includes(msg)) out.push(msg);
+    walk(g.a, false); walk(g.b, false);
+  };
+  const NEGP = '„Nie je pravda, že…“ neguje celú časť vety, preto je ¬ pred zátvorkou.';
+  walk(f, true);
+  if (f.t !== 'var' && !(f.t === 'not' && f.a.t === 'var')) {
+    const names = { and: 'konjunkcia', or: 'disjunkcia', imp: 'implikácia', iff: 'ekvivalencia', not: 'negácia' };
+    if (depth(f) >= 2) out.unshift(`Hlavná spojka celej vety je ${names[f.t]}. Menšie časti vety idú do zátvoriek.`);
+  }
+  const lits = [];
+  (function go(g) { if (g.t === 'not' && g.a.t === 'var') lits.push(g.a.n); else if (g.t !== 'var') { go(g.a); if (g.b) go(g.b); } })(f);
+  if (lits.length) out.push(`Zápor vo vete (ne-, nie) sa píše ako ¬ pred písmenom: ${[...new Set(lits)].map(x => '¬' + x).join(', ')}.`);
+  if (f.t === 'var') out.push('Jednoduchý výrok, stačí jeho písmeno zo schémy.');
+  return out;
+}
+function fullSolution(el, w) {
+  const fs = w.s.map(x => P(x[1]));
+  const prem = fs.slice(0, -1), concl = fs[fs.length - 1];
+  const basic = autoProve(prem, concl), der = autoProve(prem, concl, { derived: true });
+  const usesD = der && der.some(l => DRULES[l.rule] && l.rule !== 'Ekviv');
+  let h = `<h3>Podrobné riešenie</h3>
+    <div class="solstep"><h4>1. Preklad do zápisu výrokovej logiky</h4><p>Každú vetu prekladáme zvlášť. Najprv nájdi jednoduché výroky (písmená zo schémy), potom slová, ktoré ich spájajú.</p>${glossHTML(w.g)}
+    ${w.s.map((x, i) => `<div class="solsent"><div class="role">${i === w.s.length - 1 ? 'Záver' : 'Premisa ' + (i + 1)}</div><div class="hardtext">${esc(x[0])}</div><div class="fx solf">${show(fs[i])}</div><ul>${explainTrans(x[0], fs[i]).map(m => `<li>${m}</li>`).join('')}</ul></div>`).join('')}</div>
+    <div class="solstep"><h4>2. Argument v symboloch a plán</h4><div class="seq">${prem.map(x => show(x)).join(', ')} ⊢ ${show(concl)}</div><p>${proofPlan(prem, concl)}</p><p>Postup pri každom dôkaze: (1) pozri sa na tvar záveru, (2) pozri, čo sa dá z premís vybrať hneď (MPP, MTT, ∧E), (3) ak sa zasekneš, zaveď predpoklad a uvoľni ho cez CP, RAA alebo ∨E.</p></div>
+    <div class="solstep"><h4>3. Dôkaz desiatimi základnými pravidlami</h4><div class="w1"></div></div>
+    <div class="solstep"><h4>4. Kratší dôkaz s odvodenými pravidlami a skratkami</h4><div class="w2"></div></div>
+    <div class="row" style="margin-top:12px"><button class="btn tosolver">Otvoriť v riešiteľovi (tabuľka, strom)</button></div>`;
+  el.innerHTML = h;
+  if (basic) proofWalk($('.w1', el), basic, prem, concl); else $('.w1', el).innerHTML = '<p>Automatický dôkaz sa nepodarilo nájsť.</p>';
+  if (der && usesD) proofWalk($('.w2', el), der, prem, concl, { note: basic ? `<p class="small muted">Základný dôkaz má ${basic.length} riadkov, tento ${der.length}.</p>` : '' });
+  else $('.w2', el).innerHTML = '<p>V tomto príklade skratky dôkaz neskrátia, základné pravidlá sú tu najkratšia cesta.</p>';
+  $('.tosolver', el).addEventListener('click', () => { solverText = `${prem.map(x => show(x)).join(', ')} ⊢ ${show(concl)}`; solverMode = 'tree'; location.hash = 'ries'; });
+}
+let hardCur = null;
+function viewHard() {
+  if (!hardCur) hardCur = genHard();
+  const w = hardCur;
+  appEl.innerHTML = `<div class="stack"><div><h2>Ťažké príklady</h2><p class="muted">Náhodný zložitý úsudok. Najprv ho prelož do zápisu výrokovej logiky, potom dokáž. V dôkaze môžeš použiť základné aj odvodené pravidlá. Keď nevieš ako ďalej, pozri si podrobné riešenie.</p></div>
+    <div class="card task"><div class="meta"><span>Ťažký príklad</span></div><div class="hardtext hardfull">${w.s.map(x => esc(x[0])).join(' ')}</div><div class="body"></div>${notesHTML()}</div>
+    <div class="row"><button class="btn primary hnew">Nový príklad</button><button class="btn hsol">Neviem, ukáž podrobné riešenie</button></div>
+    <div class="card hsolbox" hidden></div></div>`;
+  wireNotes(appEl);
+  wordTaskFrom(w, true, { derived: true }).mount($('.body', appEl), r => { S.solved++; S.hard = S.hard || { ok: 0, n: 0 }; S.hard.n++; if (r.ok) S.hard.ok++; save(); });
+  $('.hnew', appEl).addEventListener('click', () => { hardCur = genHard(); viewHard(); window.scrollTo({ top: 0 }); });
+  $('.hsol', appEl).addEventListener('click', () => { const b = $('.hsolbox', appEl); b.hidden = false; fullSolution(b, w); b.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+}
+
+// ================= poznámky pri riešení =================
+function notesHTML() {
+  let open = false;
+  try { open = localStorage.getItem('vlogika.notes') === '1'; } catch (e) {}
+  return `<details class="notes" ${open ? 'open' : ''}><summary>Poznámky</summary><div class="keys">${['¬', '∧', '∨', '→', '↔', '⊢', '(', ')'].map(k => `<button type="button" class="op" data-k="${k}">${k}</button>`).join('')}</div><textarea rows="5" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="Miesto na pomocné výpočty a poznámky. Nehodnotí sa."></textarea></details>`;
+}
+function wireNotes(root) {
+  const d = $('.notes', root);
+  if (!d) return;
+  const ta = $('textarea', d);
+  d.addEventListener('toggle', () => { try { localStorage.setItem('vlogika.notes', d.open ? '1' : '0'); } catch (e) {} });
+  $$('.keys button', d).forEach(b => { b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', () => {
+    const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? s, k = b.dataset.k;
+    ta.value = ta.value.slice(0, s) + k + ta.value.slice(e); ta.setSelectionRange(s + k.length, s + k.length); ta.focus();
+  }); });
+}
+
+// ================= vysvetlenie pojmov po kliknutí =================
+const GLOSSARY = [
+  ['antecedent', 'Antecedent', 'Predná časť implikácie, to pred šípkou. Je to podmienka. V „ak prší, je mokro“ je antecedent „prší“.'],
+  ['konzekvent', 'Konzekvent', 'Zadná časť implikácie, to za šípkou. Je to dôsledok. V „ak prší, je mokro“ je konzekvent „je mokro“.'],
+  ['premis', 'Premisa', 'Tvrdenie, z ktorého vychádzame. Berieme ho ako dané a pýtame sa, čo z neho vyplýva.'],
+  ['záver', 'Záver', 'Tvrdenie, ktoré má z premís vyplývať. V zápise je za znakom ⊢ alebo ∴.'],
+  ['tautológi', 'Tautológia', 'Formula, ktorá je pravdivá vždy, pri akýchkoľvek hodnotách premenných. V tabuľke má samé T. Príklad: P ∨ ¬P.'],
+  ['kontradikci', 'Kontradikcia', 'Formula, ktorá je vždy nepravdivá. V tabuľke má samé F. Príklad: P ∧ ¬P.'],
+  ['konjunkci|konjunkt', 'Konjunkcia (∧)', 'Spojenie „a“. Je pravdivá, len keď sú pravdivé obe časti. Jej časti sa volajú konjunkty.'],
+  ['disjunkci|disjunkt', 'Disjunkcia (∨)', 'Spojenie „alebo“. Je pravdivá, keď je pravdivá aspoň jedna časť (môžu aj obe). Jej časti sa volajú disjunkty.'],
+  ['implikáci|kondicionál', 'Implikácia (→)', '„Ak A, potom B.“ Nepravdivá je len vtedy, keď A platí a B neplatí. Vo všetkých ostatných prípadoch je pravdivá.'],
+  ['ekvivalenci|ekvivalentn|bikondicionál', 'Ekvivalencia (↔)', '„A vtedy a len vtedy, keď B.“ Je pravdivá, keď majú A a B rovnakú hodnotu. Dve formuly sú ekvivalentné, keď majú v každom riadku tabuľky rovnakú hodnotu.'],
+  ['negáci', 'Negácia (¬)', 'Popretie výroku. Obracia hodnotu: z T robí F a z F robí T.'],
+  ['hlavn[a-záäčďéíĺľňóôŕšťúýž]* spojk', 'Hlavná spojka', 'Spojka, ktorá spája celú formulu dokopy, teda tá, ktorá sa vyhodnocuje ako posledná. V (P ∧ Q) → R je hlavná spojka →.'],
+  ['predpoklad', 'Predpoklad', 'Riadok, ktorý si v dôkaze dovolíme napísať bez odvodenia (pravidlo A). Premisy sú predpoklady. Pomocný predpoklad treba neskôr uvoľniť cez CP, RAA alebo ∨E.'],
+  ['závislos', 'Závislosti', 'Čísla vľavo od riadku dôkazu. Hovoria, od ktorých predpokladov riadok závisí. Záver smie na konci závisieť len od premís.'],
+  ['protipríklad', 'Protipríklad', 'Hodnoty premenných, pri ktorých sú všetky premisy pravdivé a záver nepravdivý. Jeden protipríklad stačí na to, aby bol argument neplatný.'],
+  ['neplatn', 'Neplatný argument', 'Argument, pri ktorom sa môže stať, že premisy sú pravdivé a záver nepravdivý.'],
+  ['platn', 'Platný argument', 'Argument, pri ktorom sa nemôže stať, že premisy sú pravdivé a záver nepravdivý. Ak platia premisy, musí platiť aj záver.'],
+  ['sekvent', 'Sekvent', 'Zápis argumentu v symboloch: premisy, znak ⊢ a záver. Napríklad P → Q, P ⊢ Q.'],
+  ['podformul', 'Podformula', 'Menšia formula, z ktorej je väčšia zložená. V (P ∧ Q) → R sú podformuly P ∧ Q, P, Q a R.'],
+  ['splniteľn|kontingen', 'Splniteľná formula', 'Formula, ktorá je aspoň pri niektorých hodnotách pravdivá. Kontingentná je taká, ktorá je niekedy T a niekedy F.'],
+  ['konzistentn', 'Konzistentná množina', 'Skupina viet, ktoré môžu byť pravdivé všetky naraz. V tabuľke existuje riadok, kde majú všetky T.'],
+  ['dostatočn[a-záäčďéíĺľňóôŕšťúýž]* podmienk', 'Dostatočná podmienka', 'Stačí, aby nastala, a dôsledok už platí. Píše sa pred šípku: D → N.'],
+  ['nutn[a-záäčďéíĺľňóôŕšťúýž]* podmienk', 'Nutná podmienka', 'Bez nej to nejde. Píše sa za šípku: D → N. „A, iba ak B“ znamená, že B je nutná podmienka pre A, teda A → B.'],
+  ['spor(?![a-záäčďéíĺľňóôŕšťúýž]{3})', 'Spor', 'Situácia, keď platí nejaká formula aj jej negácia naraz (Y aj ¬Y). Niečo také nemôže nastať, preto bol niektorý predpoklad nesprávny.'],
+  ['vetv', 'Vetva stromu', 'Jedna cesta v pravdivostnom strome zhora nadol. Predstavuje jednu možnosť, ako by mohli formuly platiť. Vetva sa uzavrie, keď je na nej formula aj jej negácia.'],
+  ['substitúci', 'Substitúcia (SI)', 'Použitie už dokázaného úsudku alebo ekvivalencie ako hotovej skratky v dôkaze.'],
+  ['teorém', 'Teoréma', 'Formula, ktorá sa dá dokázať bez akýchkoľvek premís, napríklad P ∨ ¬P. Pravidlom TI ju možno zapísať na ktoromkoľvek riadku.'],
+  ['transpozíci|kontrapozíci', 'Transpozícia', 'P → Q je to isté ako ¬Q → ¬P. Implikáciu otočíme a obe strany znegujeme.'],
+  ['dilem', 'Dilema', 'Úsudok z disjunkcie a dvoch implikácií: nastane jedna z dvoch možností a z každej niečo vyplýva.'],
+  ['sylogizm', 'Sylogizmus', 'Úsudok z dvoch premís. Hypotetický: P → Q, Q → R, teda P → R. Disjunktívny: P ∨ Q, ¬P, teda Q.'],
+  ['výrokov[a-záäčďéíĺľňóôŕšťúýž]* premenn', 'Výroková premenná', 'Písmeno (P, Q, R…), ktoré zastupuje jeden jednoduchý výrok.'],
+];
+const GLOSS_L = '[a-záäčďéíĺľňóôŕšťúýž]*';
+const GLOSS_RE = new RegExp('(?<![A-Za-zÀ-ž])(?:' + GLOSSARY.map((g, i) => `(?<g${i}>(?:${g[0]})${GLOSS_L})`).join('|') + ')', 'gi');
+const GLOSS_SKIP = 'button, input, textarea, select, option, .fx, .term, .termpop, table, .seq, .big, .keys, .tabs, label, h1, h2, h3, h4, summary, .gloss, .tree, .sent, .hardtext, .meta, .syncst, .brand, .score, .grade, .loginbox, script, style';
+let glossBusy = false;
+function glossify(root) {
+  if (!root) return;
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.nodeValue.length > 3 && n.parentElement && !n.parentElement.closest(GLOSS_SKIP) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
+  const nodes = [];
+  while (tw.nextNode()) nodes.push(tw.currentNode);
+  for (const n of nodes) {
+    const txt = n.nodeValue;
+    GLOSS_RE.lastIndex = 0;
+    let m, last = 0, frag = null;
+    while ((m = GLOSS_RE.exec(txt))) {
+      const gi = Object.keys(m.groups).find(k => m.groups[k] !== undefined);
+      if (!frag) frag = document.createDocumentFragment();
+      frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+      const sp = document.createElement('span');
+      sp.className = 'term'; sp.dataset.g = gi.slice(1); sp.tabIndex = 0; sp.setAttribute('role', 'button'); sp.textContent = m[0];
+      frag.appendChild(sp);
+      last = m.index + m[0].length;
+    }
+    if (frag) { frag.appendChild(document.createTextNode(txt.slice(last))); n.parentNode.replaceChild(frag, n); }
+  }
+}
+function closeTerm() { const p = document.getElementById('termpop'); if (p) p.remove(); }
+function openTerm(sp) {
+  closeTerm();
+  const g = GLOSSARY[+sp.dataset.g];
+  const p = document.createElement('div');
+  p.id = 'termpop'; p.className = 'termpop'; p.setAttribute('role', 'tooltip');
+  p.innerHTML = `<b>${g[1]}</b><p>${g[2]}</p>`;
+  document.body.appendChild(p);
+  const r = sp.getBoundingClientRect(), w = Math.min(320, innerWidth - 24);
+  p.style.width = w + 'px';
+  p.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left)) + 'px';
+  const ph = p.offsetHeight;
+  p.style.top = (r.bottom + ph + 12 > innerHeight && r.top - ph - 8 > 0 ? r.top - ph - 6 : r.bottom + 6) + 'px';
+}
+document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('.term'); if (t) { e.stopPropagation(); openTerm(t); } else if (!e.target.closest || !e.target.closest('.termpop')) closeTerm(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTerm(); else if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('term')) { e.preventDefault(); openTerm(e.target); } });
+window.addEventListener('scroll', closeTerm, true);
+(function watchGloss() {
+  let queued = false;
+  const run = () => {
+    queued = false; glossBusy = true;
+    try { glossify(document.getElementById('app')); glossify(document.getElementById('theoryOv')); } catch (e) {}
+    mo.takeRecords(); glossBusy = false;
+  };
+  const mo = new MutationObserver(() => { if (glossBusy || queued) return; queued = true; setTimeout(run, 30); });
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ================= krátke návody k typom úloh =================
+const HOWTO = {
+  conn: ['Pozri sa, o ktorú spojku ide.', '∧ je T len pri T a T. ∨ je F len pri F a F. → je F len pri T → F. ↔ je T, keď sú hodnoty rovnaké. ¬ hodnotu obráti.'],
+  eval: ['Dosaď hodnoty za písmená.', 'Vyhodnocuj zvnútra von: najprv negácie pri písmenách a najvnútornejšie zátvorky.', 'Hlavná spojka príde na rad posledná a jej hodnota je výsledok.'],
+  table: ['Vypĺňaj po stĺpcoch zľava doprava, nie po riadkoch.', 'V každom stĺpci sa pozeraj len na dva stĺpce, z ktorých vzniká.', 'Pri → hľadaj riadky T → F, tam je F, všade inde T.'],
+  classify: ['Urob (aspoň v hlave) stĺpec hlavnej spojky.', 'Samé T znamená tautológia, samé F kontradikcia, zmiešané splniteľná.', 'Skratka: skús nájsť hodnoty, pri ktorých je formula F. Ak sa to nedá, je to tautológia.'],
+  equiv: ['Porovnaj stĺpce oboch formúl riadok po riadku.', 'Jediný riadok s rozdielom stačí, aby neboli ekvivalentné.', 'Pomôžu známe zákony: De Morgan, materiálna implikácia, transpozícia.'],
+  consist: ['Hľadáš jeden riadok, v ktorom sú všetky vety T naraz.', 'Začni vetou, ktorá ti hodnoty určí najviac (jednoduchý výrok alebo jeho negácia).', 'Ak taký riadok nie je, množina je nekonzistentná.'],
+  valid: ['Hľadaj protipríklad: všetky premisy T a záver F.', 'Začni od záveru: kedy je F? Tieto hodnoty dosaď do premís.', 'Ak sa premisy pri F závere nedajú urobiť všetky T, argument je platný.', 'Pozor na afirmáciu konzekventu a negáciu antecedentu, oba úsudky sú neplatné.'],
+  trans: ['Nájdi vo vete jednoduché výroky a priraď im písmená zo schémy.', 'Nájdi slová, ktoré ich spájajú: a, ale → ∧; alebo → ∨; ak → antecedent; iba ak → konzekvent; vtedy a len vtedy → ↔.', 'Pri podmienkach použi D → N: dostatočná pred šípku, nutná za šípku.', 'Zápor (ne-, nie je pravda, že) napíš ako ¬ a rozmysli si, či neguje jedno písmeno alebo celú zátvorku.'],
+  rid: ['Pozri, koľko riadkov posledný krok cituje a aký tvar majú.', 'Implikácia + jej antecedent je MPP. Implikácia + negácia konzekventu je MTT.', 'Ak zo závislostí zmizol predpoklad, bolo to CP, RAA alebo ∨E.', 'Implikácia + konzekvent alebo implikácia + negácia antecedentu sú chyby, nie pravidlá.'],
+  rcon: ['Pravidlo dáva presný tvar, nie len niečo ekvivalentné.', 'Závislosti sú zjednotením závislostí citovaných riadkov.', 'CP, RAA a ∨E uvoľňujú predpoklad, jeho číslo zo závislostí vypadne.'],
+  proof: ['Pozri sa na záver. Implikácia: predpokladaj antecedent a cieľ je konzekvent (CP). Konjunkcia: dokáž oba členy (∧I). Negácia: MTT alebo RAA.', 'Pozri, čo sa dá z premís vybrať hneď: ∧E, MPP, MTT.', 'Ak je v premisách disjunkcia, rozober oba prípady (∨E).', 'Keď nič nezaberá: predpokladaj negáciu záveru, nájdi spor, RAA a DN.', 'Na konci skontroluj závislosti: záver smie závisieť len od premís.'],
+  word: ['Prelož každú vetu zvlášť, premisy aj záver.', 'Slová preto, teda, z toho vyplýva uvádzajú záver.', 'Potom hľadaj protipríklad: premisy T a záver F. Ak neexistuje, argument je platný.'],
+  wordproof: ['Prelož každú vetu zvlášť, premisy aj záver.', 'Zapíš premisy ako riadky dôkazu.', 'Ďalej postupuj ako pri každom dôkaze: tvar záveru, čo sa dá vybrať hneď, potom predpoklady.'],
+  drid: ['Spočítaj citované riadky a pozri ich tvar.', 'Dve implikácie za sebou sú HS. Disjunkcia a negácia jedného člena je DS. Negovaná konjunkcia a jeden člen je MPT.', 'Jeden citovaný riadok a iný tvar tej istej informácie je ekvivalencia (DM, Impl, Transp, Exp…).'],
+  drcon: ['Nájdi v schéme pravidla, čo je P, Q, R.', 'Dosaď za ne časti citovaných riadkov, aj keď sú to celé zátvorky.', 'Skratka sa používa na celý riadok.'],
+  dproof: ['Postupuj ako pri základnom dôkaze, ale všímaj si miesta, kde skratka ušetrí kroky.', 'Reťaz implikácií spoj cez HS. Disjunkciu s negáciou člena rieš cez DS.', 'Negáciu zátvorky prepíš cez DM alebo Impl a pokračuj s jednoduchším tvarom.'],
+  trule: ['Zapamätaj si tri veci, ktoré sa nevetvia: A ∧ B, ¬(A ∨ B), ¬(A → B).', 'Všetko ostatné sa vetví: A ∨ B, A → B, ¬(A ∧ B), A ↔ B, ¬(A ↔ B).', 'Pomôcka: pýtaj sa, kedy je formula pravdivá. Jeden spôsob znamená bez vetvenia, viac spôsobov znamená vetvy.'],
+  tread: ['Prejdi každú vetvu zhora nadol.', 'Ak je na vetve formula aj jej negácia, vetva je uzavretá.', 'Všetky vetvy uzavreté znamená platný argument. Jedna otvorená stačí na neplatný.'],
+  tbuild: ['Na začiatku sú premisy a negácia záveru.', 'Najprv rozkladaj formuly, ktoré sa nevetvia, strom bude menší.', 'Rozložený riadok si odškrtni a výsledok pripíš na každú otvorenú vetvu pod ním.', 'Vetvu uzavri hneď, ako sa na nej objaví formula a jej negácia.'],
+};
+// ================= TEÓRIA: doplnené kapitoly =================
+const drow = rs => '<div class="tt"><table class="truth"><thead><tr><th>skratka</th><th>názov</th><th>schéma</th></tr></thead><tbody>' + rs.map(r => `<tr><td><b>${r}</b></td><td style="text-align:left;white-space:normal">${DRULES[r].n}</td><td style="text-align:left;white-space:normal">${DRULES[r].v.map(([ps, c]) => `${ps.join(', ')} ${DRULES[r].eq ? '—||—' : '⊢'} ${c}`).join('<br>')}</td></tr>`).join('') + '</tbody></table></div>';
+const treeEx = (seq, lim) => { const t = parseTask(seq); const T = buildTree(treeRoots(t)); return treeHTML(T, lim === undefined ? T.total : lim, { noNew: true }); };
+CHAPTERS.push(
+  { id: 'odvodene', part: 'Odvodené pravidlá', t: 'Odvodené pravidlá: úsudky (SI)', gens: ['drid'], opts: { rules: D_BASIC_SET }, html: `
+<p>Všetko sa dá dokázať desiatimi základnými pravidlami. <b>Odvodené pravidlá</b> sú úsudky, ktoré už niekto základnými pravidlami dokázal, a preto ich smieme použiť ako hotovú <b>skratku</b>. Dôkaz je potom kratší. V zdôvodnení sa píše <b>SI</b> (zavedenie substitúcie) a názov pravidla, napr. ${F_('1,2 SI HS')}.</p>
+${drow(['HS', 'DS', 'MPT', 'JD', 'KD', 'JDD', 'DD', 'ŠD', 'CM'])}
+<h4>Ako si ich zapamätať</h4>
+<ul><li><b>HS</b>: reťaz. Ak z P ide Q a z Q ide R, tak z P ide R. Stredný člen vypadne.</li><li><b>DS</b>: vylučovanie. Platí jedno z dvoch, prvé neplatí, takže platí druhé.</li><li><b>MPT</b>: nemôžu platiť oba naraz, jeden platí, takže druhý nie.</li><li><b>Dilemy</b>: nastane jedna z dvoch možností a z každej niečo vyplýva. Jednoduchá dilema má v oboch prípadoch ten istý dôsledok, komplexná dva rôzne (preto je záver disjunkcia). Deštruktívna ide „odzadu“ ako MTT.</li><li><b>CM</b> (Claviov zákon): ak z P vyplýva jeho vlastná negácia, P neplatí.</li></ul>
+${pf([['1', 1, 'A → B', 'A'], ['2', 2, 'B → C', 'A'], ['3', 3, '¬C', 'A'], ['1,2', 4, 'A → C', '1,2 SI HS', 'reťaz dvoch implikácií'], ['1,2,3', 5, '¬A', '4,3 MTT']], 'Riešený príklad: A → B, B → C, ¬C ⊢ ¬A')}
+${pf([['1', 1, 'P ∨ Q', 'A'], ['2', 2, '¬P', 'A'], ['1,2', 3, 'Q', '1,2 SI DS']], 'DS jedným krokom. Základnými pravidlami má ten istý dôkaz 9 riadkov (∨E a RAA).')}
+<h4>Ďalšie užitočné skratky</h4>
+${drow(['ExFals', 'TC', 'FA', 'KA', '↔PP', '↔TT'])}
+${box('warn', 'Pozor', `<p>Skratka sa používa na <b>celý riadok</b>. Tvar musí sedieť presne: pre DS potrebuješ presne negáciu jedného člena. Ak máš ${F_('¬P ∨ Q')} a ${F_('P')}, najprv urob ${F_('¬¬P')} cez DN.</p><p>Afirmácia konzekventu a negácia antecedentu nie sú pravidlá ani skratky, sú to chyby.</p>`)}` },
+  { id: 'ekvskr', part: 'Odvodené pravidlá', t: 'Ekvivalencie a teorémy (SI, TI)', gens: ['drid'], opts: { rules: D_EQ_SET }, html: `
+<p><b>Vzájomne odvoditeľné tvrdenia</b> (znak —||—) hovoria to isté iným tvarom. Riadok jedného tvaru môžeš prepísať na druhý, oboma smermi. Aj tu sa píše SI a názov.</p>
+${drow(['DM', 'Impl', 'Transp', 'Exp', 'Com', 'Asoc', 'Dist', 'Ekviv', 'Taut', 'Neg↔', '↔Transp'])}
+<h4>Tri najdôležitejšie</h4>
+<ul><li><b>De Morgan (DM)</b>: negácia pred zátvorkou sa „rozdá“ dovnútra a spojka sa prehodí: z ∧ je ∨ a naopak.</li><li><b>Materiálna implikácia (Impl)</b>: ${F_('P → Q')} je to isté ako ${F_('¬P ∨ Q')}. Negácia implikácie je ${F_('P ∧ ¬Q')}: antecedent platí a konzekvent nie.</li><li><b>Transpozícia (Transp)</b>: implikáciu otoč a obe strany zneguj: ${F_('P → Q')} je ${F_('¬Q → ¬P')}.</li></ul>
+${pf([['1', 1, '¬(P → Q)', 'A'], ['2', 2, 'Q ∨ R', 'A'], ['1', 3, 'P ∧ ¬Q', '1 SI Impl', 'negácia implikácie'], ['1', 4, '¬Q', '3 ∧E'], ['1,2', 5, 'R', '2,4 SI DS']], 'Riešený príklad: ¬(P → Q), Q ∨ R ⊢ R')}
+<h4>Teorémy (TI)</h4>
+<p><b>Teoréma</b> je formula dokázateľná bez premís. Pravidlom <b>TI</b> ju smieš napísať na ktorýkoľvek riadok, necituje nič a nemá žiadne závislosti. Najčastejšie sa používa vylúčenie tretieho ${F_('P ∨ ¬P')}, potom ${F_('¬(P ∧ ¬P)')} a ${F_('P → P')}.</p>
+${pf([['1', 1, 'P → Q', 'A'], ['2', 2, '¬P → Q', 'A'], ['', 3, 'P ∨ ¬P', 'TI', 'vylúčenie tretieho, bez závislostí'], ['1,2', 4, 'Q', '1,2,3 SI JD']], 'Riešený príklad: P → Q, ¬P → Q ⊢ Q')}
+${box('tip', 'Kedy siahnuť po skratke', `<p>Keď je pred zátvorkou negácia (DM, Impl), keď sú implikácie v reťazi (HS), keď máš disjunkciu a negáciu jej člena (DS), alebo keď záver vyzerá ako otočená implikácia (Transp).</p>`)}` },
+  { id: 'strom', part: 'Pravdivostné stromy', t: 'Pravdivostný strom', gens: ['trule'], html: `
+<p><b>Pravdivostný strom</b> je diagram, ktorým sa dá otestovať platnosť argumentu alebo tautológia bez celej tabuľky. Myšlienka: predpokladáme, že premisy platia a záver <b>neplatí</b>, a zisťujeme, či je to vôbec možné.</p>
+<ol><li>Na začiatok napíš pod seba premisy a <b>negáciu záveru</b>.</li><li>Zložené formuly postupne rozkladaj podľa pravidiel. Rozložený riadok si odškrtni (✓).</li><li>Niektoré pravidlá píšu výsledok pod seba, iné strom <b>vetvia</b>. Vetvenie znamená „buď jedno, alebo druhé“.</li><li>Vetva sa <b>uzavrie</b> (✕), keď je na nej nejaká formula aj jej negácia.</li><li>Všetky vetvy uzavreté: argument je <b>platný</b>. Aspoň jedna otvorená, na ktorej už nie je čo rozkladať: argument je <b>neplatný</b> a z vetvy prečítaš protipríklad.</li></ol>
+<h4>Pravidlá bez vetvenia</h4>
+<div class="tt"><table class="truth"><thead><tr><th>formula</th><th>pod seba</th><th>prečo</th></tr></thead><tbody>
+<tr><td>A ∧ B</td><td>A, B</td><td style="text-align:left;white-space:normal">konjunkcia platí, len keď platia oba členy</td></tr>
+<tr><td>¬(A ∨ B)</td><td>¬A, ¬B</td><td style="text-align:left;white-space:normal">disjunkcia neplatí, len keď neplatí ani jeden</td></tr>
+<tr><td>¬(A → B)</td><td>A, ¬B</td><td style="text-align:left;white-space:normal">implikácia neplatí len pri T → F</td></tr>
+<tr><td>¬¬A</td><td>A</td><td style="text-align:left;white-space:normal">dvojitá negácia sa zruší</td></tr></tbody></table></div>
+<h4>Pravidlá vetvenia</h4>
+<div class="tt"><table class="truth"><thead><tr><th>formula</th><th>ľavá vetva</th><th>pravá vetva</th></tr></thead><tbody>
+<tr><td>A ∨ B</td><td>A</td><td>B</td></tr><tr><td>A → B</td><td>¬A</td><td>B</td></tr><tr><td>¬(A ∧ B)</td><td>¬A</td><td>¬B</td></tr><tr><td>A ↔ B</td><td>A, B</td><td>¬A, ¬B</td></tr><tr><td>¬(A ↔ B)</td><td>A, ¬B</td><td>¬A, B</td></tr></tbody></table></div>
+<div class="ex"><p class="excap">Platný argument: P → Q, ¬Q ⊢ ¬P</p>${treeEx('P → Q, ¬Q ⊢ ¬P')}<p>Riadok 3 je negácia záveru. Po rozložení implikácie je vľavo ¬P proti ¬¬P a vpravo Q proti ¬Q. Obe vetvy sú uzavreté, argument je platný.</p></div>
+<div class="ex"><p class="excap">Neplatný argument: P → Q, Q ⊢ P (afirmácia konzekventu)</p>${treeEx('P → Q, Q ⊢ P')}<p>Vetvy zostali otvorené. Z ľavej prečítame protipríklad: P = F (je tam ¬P) a Q = T.</p></div>
+${box('tip', 'Tipy', `<p>Najprv rozkladaj formuly, ktoré sa <b>nevetvia</b>, strom bude menší. Výsledok rozkladu patrí na každú otvorenú vetvu pod rozkladaným riadkom. Vetvu uzavri hneď, ako uvidíš spor, ďalej ju už nerozkladáš.</p><p>Tautológiu testuješ tak, že na začiatok dáš jej negáciu. Ak sa všetko uzavrie, je to tautológia.</p>`)}
+${box('info', 'V aplikácii', `<p>V záložke Riešiteľ si môžeš dať postaviť strom pre ľubovoľný argument krok za krokom.</p>`)}` },
+  { id: 'navod', part: 'Ako riešiť úlohy', t: 'Postup pri každom type úlohy', gens: ['wordproof'], html: `
+<p>Táto kapitola je ťahák: pre každý typ úlohy presný postup, čo robiť ako prvé, druhé, tretie.</p>
+<h4>1. Tabuľka hodnôt</h4>
+<ol><li>Spočítaj premenné. Riadkov je 2ⁿ (2 premenné 4 riadky, 3 premenné 8).</li><li>Vyplň stĺpce premenných: prvá polovica T, druhá F; ďalšia premenná po štvrtinách, atď.</li><li>Urob stĺpec pre každú podformulu, od najmenšej. Hlavná spojka je posledná.</li><li>Každý stĺpec počítaj len z dvoch stĺpcov, z ktorých vzniká. Pri → hľadaj riadky T → F.</li><li>Výsledok: samé T je tautológia, samé F kontradikcia. Pri argumente hľadaj riadok, kde sú premisy T a záver F.</li></ol>
+<h4>2. Platnosť argumentu skrátene</h4>
+<ol><li>Predpokladaj, že záver je F, a zisti, aké hodnoty to vynúti.</li><li>Dosaď ich do premís a skús urobiť všetky premisy T.</li><li>Podarilo sa: máš protipríklad, argument je neplatný. Vyšiel spor: argument je platný.</li></ol>
+<h4>3. Preklad vety</h4>
+<ol><li>Podčiarkni jednoduché výroky a priraď im písmená.</li><li>Zakrúžkuj spojovacie slová. ${F_('a, ale, hoci')} je ∧, ${F_('alebo')} je ∨, ${F_('ak')} uvádza antecedent, ${F_('iba ak')} uvádza konzekvent, ${F_('vtedy a len vtedy')} je ↔.</li><li>Urči hlavnú spojku vety (čo spája celú vetu) a menšie časti daj do zátvoriek.</li><li>Skontroluj zápory: neguje sa jedno písmeno, alebo celá zátvorka („nie je pravda, že…“)?</li><li>Kontrola: prečítaj formulu späť po slovensky. Hovorí to isté?</li></ol>
+<h4>4. Dôkaz pravidlami</h4>
+<ol><li><b>Zapíš premisy</b> ako riadky s pravidlom A.</li><li><b>Pozri sa na záver</b> a vyber stratégiu: implikácia → predpokladaj antecedent (CP); konjunkcia → dokáž oba členy (∧I); negácia → MTT alebo RAA; disjunkcia → ∨I; jednoduchý výrok → MPP, ∧E, ∨E.</li><li><b>Vyber z premís, čo ide hneď</b>: konjunkcie rozober cez ∧E, kde máš implikáciu aj antecedent, urob MPP, kde implikáciu a negáciu konzekventu, urob MTT.</li><li><b>Disjunkcia v premisách</b>: rozbor prípadov (∨E). V oboch prípadoch musíš dôjsť k tomu istému.</li><li><b>Nevieš ďalej?</b> Predpokladaj negáciu toho, čo chceš, nájdi spor, RAA, potom DN.</li><li><b>Skontroluj závislosti</b>: posledný riadok smie závisieť len od premís. Ak tam je pomocný predpoklad, treba ho uvoľniť (CP, RAA, ∨E).</li><li><b>Skratky</b>: ak sú povolené odvodené pravidlá, pozri, či sa nedá použiť HS, DS, DM alebo Impl.</li></ol>
+${pf([['1', 1, 'P → (Q ∨ R)', 'A'], ['2', 2, '¬Q', 'A'], ['3', 3, 'P', 'A', 'záver je implikácia, predpokladáme antecedent'], ['1,3', 4, 'Q ∨ R', '1,3 MPP', 'vyberieme, čo ide hneď'], ['1,2,3', 5, 'R', '4,2 SI DS', 'disjunkcia a negácia člena'], ['1,2', 6, 'P → R', '3,5 CP', 'predpoklad 3 sa uvoľnil']], 'Ukážka postupu: P → (Q ∨ R), ¬Q ⊢ P → R')}
+<h4>5. Slovná úloha</h4>
+<ol><li>Nájdi záver (preto, teda, z toho vyplýva). Všetko ostatné sú premisy.</li><li>Prelož každú vetu zvlášť podľa bodu 3.</li><li>Zapíš argument ako sekvent: premisy ⊢ záver.</li><li>Rozhodni o platnosti (bod 2) a ak je platný, dokáž ho (bod 4).</li></ol>
+<h4>6. Pravdivostný strom</h4>
+<ol><li>Premisy a negácia záveru pod seba.</li><li>Najprv rozklady bez vetvenia, potom s vetvením.</li><li>Uzavri vetvy so sporom. Všetky uzavreté: platný. Otvorená: neplatný.</li></ol>
+${box('tip', 'Keď nevieš ďalej', `<p>Pri každej úlohe je tlačidlo <b>Ako na to</b> s krátkym postupom pre daný typ. Pri dôkazoch je Nápoveda a po vzdaní sa ukáže celé riešenie krok za krokom. V záložke Ťažké príklady je ku každému príkladu podrobné riešenie od prekladu po dôkaz.</p>`)}` },
+);
+LEVEL_CH.push(['odvodene'], ['ekvskr'], ['odvodene', 'ekvskr', 'navod'], ['strom'], ['strom']);
+const chapterFor0 = chapterFor;
+chapterFor = function (id, opts) {
+  const by = x => CHAPTERS.findIndex(c => c.id === x);
+  if (id === 'drid' || id === 'drcon') return by((opts && opts.rules && opts.rules.every(r => DRULES[r] && DRULES[r].g === 'ekv')) ? 'ekvskr' : 'odvodene');
+  if (id === 'dproof') return by('odvodene');
+  if (id === 'trule' || id === 'tread' || id === 'tbuild') return by('strom');
+  return chapterFor0(id, opts);
+};
 // ================= web: prihlásenie a ukladanie postupu (Supabase) =================
 const CFG = window.LOGIKA_CONFIG || {};
 let sb = null, sbUser = null, remoteBusy = false, remoteDirty = false, remoteTimer = null;
@@ -2709,6 +3520,16 @@ const LEVELS = [
     th: '<p>Úsudok v prirodzenom jazyku najprv prelož podľa schémy (každá premisa a záver zvlášť). Potom rozhodni, či je platný. Ak nie je, nájdi protipríklad.</p><p>Na preklad platí všetko z levelov 8 a 9: D – N, „ak“ vs. „iba ak“, „ale“ = ∧.</p>' },
   { part: 'Slovné úlohy', t: 'Slovné úlohy: dôkaz', mix: [['wordproof', {}, 1]], d: [1, 5], n: 4, pass: 3,
     th: '<p>Ako v skriptách v časti F: prelož úsudok a nájdi jeho dôkaz základnými pravidlami. Dôkaz sa robí so vzorovým prekladom, aby sedeli tvary formúl.</p>' },
+  { part: 'Odvodené pravidlá', t: 'Odvodené úsudky: HS, DS, MPT, dilemy', mix: [['drid', { rules: D_BASIC_SET }, 1], ['drcon', { rules: D_BASIC_SET }, 1]], d: [1, 3], n: 8, pass: 6,
+    th: '<p>Odvodené pravidlá sú hotové úsudky, ktoré smieš použiť ako skratku. V zdôvodnení sa píše SI a názov.</p><ul><li><b>HS</b>: P → Q, Q → R ⊢ P → R</li><li><b>DS</b>: P ∨ Q, ¬P ⊢ Q</li><li><b>MPT</b>: ¬(P ∧ Q), P ⊢ ¬Q</li><li><b>JD</b>: P → R, Q → R, P ∨ Q ⊢ R</li><li><b>KD</b>: P → Q, R → S, P ∨ R ⊢ Q ∨ S</li><li><b>DD</b>: P → Q, R → S, ¬Q ∨ ¬S ⊢ ¬P ∨ ¬R</li><li><b>CM</b>: P → ¬P ⊢ ¬P</li></ul>' },
+  { part: 'Odvodené pravidlá', t: 'Ekvivalencie: DM, Impl, Transp a ďalšie', mix: [['drid', { rules: D_EQ_SET }, 1], ['drcon', { rules: D_EQ_SET }, 1]], d: [1, 3], n: 8, pass: 6,
+    th: '<p>Vzájomne odvoditeľné tvrdenia (—||—) hovoria to isté iným tvarom. Riadok môžeš prepísať oboma smermi.</p><ul><li><b>DM</b>: ¬(P ∨ Q) —||— ¬P ∧ ¬Q a ¬(P ∧ Q) —||— ¬P ∨ ¬Q</li><li><b>Impl</b>: P → Q —||— ¬P ∨ Q a ¬(P → Q) —||— P ∧ ¬Q</li><li><b>Transp</b>: P → Q —||— ¬Q → ¬P</li><li><b>Exp</b>: (P ∧ Q) → R —||— P → (Q → R)</li><li><b>Dist</b>, <b>Com</b>, <b>Ekviv</b>: pozri teóriu.</li></ul>' },
+  { part: 'Odvodené pravidlá', t: 'Dôkazy so skratkami', mix: [['dproof', {}, 1]], d: [1, 5], n: 4, pass: 3,
+    th: '<p>V dôkaze môžeš použiť všetkých 10 základných pravidiel, odvodené pravidlá (SI) aj teorémy (TI). V zozname pravidiel sú pod základnými. Skratka sa používa na celý riadok a tvar musí sedieť presne.</p><p>Keď sa vzdáš, uvidíš celé riešenie krok za krokom.</p>' },
+  { part: 'Pravdivostné stromy', t: 'Strom: pravidlá rozkladu', mix: [['trule', {}, 1]], d: [1, 3], n: 8, pass: 6,
+    th: '<p>V pravdivostnom strome sa každá zložená formula rozkladá na jednoduchšie.</p><p><b>Bez vetvenia</b> (píše sa pod seba): A ∧ B dá A, B. ¬(A ∨ B) dá ¬A, ¬B. ¬(A → B) dá A, ¬B. ¬¬A dá A.</p><p><b>S vetvením</b>: A ∨ B na A | B. A → B na ¬A | B. ¬(A ∧ B) na ¬A | ¬B. A ↔ B na A, B | ¬A, ¬B. ¬(A ↔ B) na A, ¬B | ¬A, B.</p>' },
+  { part: 'Pravdivostné stromy', t: 'Strom: stavba a platnosť argumentu', mix: [['tbuild', {}, 2], ['tread', {}, 1]], d: [1, 4], n: 5, pass: 4,
+    th: '<p>Na začiatok stromu ide každá premisa a <b>negácia záveru</b>. Formuly rozkladáš, kým sa dá. Vetva sa uzavrie, keď je na nej formula aj jej negácia.</p><p>Všetky vetvy uzavreté: argument je platný. Zostane otvorená vetva: argument je neplatný a z vetvy prečítaš protipríklad.</p>' },
 ];
 
 function levelUnlocked(i) { return S.unlockAll || i === 0 || (S.levels[i - 1] && S.levels[i - 1].passed); }
@@ -2732,7 +3553,10 @@ function runSession(cfg) {
     const d = clamp(Math.round(cfg.diff(id, i)), 1, 5);
     const task = GEN[id].gen(d, opts || {});
     const card = $('.task', appEl);
-    card.innerHTML = `<div class="meta"><span>${cfg.test ? `Úloha ${i + 1} · ${cfg.pts[i]} b · ` : ''}${GEN[id].label}</span>${cfg.test ? '' : `<span class="dots" title="náročnosť">${dots(d)}</span><button class="btn thbtn" type="button">Teória</button>`}</div><div class="body"></div><div class="next"></div>`;
+    card.innerHTML = `<div class="meta"><span>${cfg.test ? `Úloha ${i + 1} · ${cfg.pts[i]} b · ` : ''}${GEN[id].label}</span>${cfg.test ? '' : `<span class="dots" title="náročnosť">${dots(d)}</span><button class="btn howbtn" type="button">Ako na to</button><button class="btn thbtn" type="button">Teória</button>`}</div><div class="howto" hidden></div><div class="body"></div>${notesHTML()}<div class="next"></div>`;
+    wireNotes(card);
+    const hb = $('.howbtn', card);
+    if (hb) hb.addEventListener('click', () => { const h = $('.howto', card); h.hidden = !h.hidden; if (!h.hidden) h.innerHTML = `<p class="tbt">Ako na to</p><ol>${(HOWTO[id] || []).map(x => `<li>${x}</li>`).join('')}</ol>`; });
     card.classList.toggle('testmode', !!cfg.test);
     if (!cfg.test) $('.thbtn', card).addEventListener('click', () => openTheory(chapterFor(id, opts)));
     let got = false;
@@ -2804,7 +3628,7 @@ function openLevel(li) {
 function viewCourse() {
   const parts = [...new Set(LEVELS.map(l => l.part))];
   const curIdx = LEVELS.findIndex((_, i) => !(S.levels[i] && S.levels[i].passed));
-  let h = `<div class="stack"><div><h2>Kurz</h2><p class="muted">${LEVELS.length} levelov od spojok po dôkazy a slovné úlohy. Každý level má krátke zhrnutie, odkaz na podrobnú teóriu a sadu úloh. Splnený level odomkne ďalší.</p></div>`;
+  let h = `<div class="stack"><div><h2>Kurz</h2><p class="muted">${LEVELS.length} levelov od spojok cez dôkazy a slovné úlohy po odvodené pravidlá a pravdivostné stromy. Každý level má krátke zhrnutie, odkaz na podrobnú teóriu a sadu úloh. Splnený level odomkne ďalší.</p></div>`;
   parts.forEach(p => {
     h += `<div class="part"><h3>${p}</h3><div class="levels">`;
     LEVELS.forEach((L, i) => {
@@ -2814,7 +3638,7 @@ function viewCourse() {
     });
     h += '</div></div>';
   });
-  h += `<div class="part"><h3>Diagramy</h3><p class="muted small">Doplníme neskôr.</p></div><label class="row small muted" style="margin-top:12px"><input type="checkbox" id="ua" ${S.unlockAll ? 'checked' : ''}> Odomknúť všetky levely</label></div>`;
+  h += `<label class="row small muted" style="margin-top:12px"><input type="checkbox" id="ua" ${S.unlockAll ? 'checked' : ''}> Odomknúť všetky levely</label></div>`;
   appEl.innerHTML = h;
   $$('.lvl', appEl).forEach(b => b.addEventListener('click', () => openLevel(+b.dataset.i)));
   $('#ua', appEl).addEventListener('change', e => { S.unlockAll = e.target.checked; save(); viewCourse(); });
@@ -2822,6 +3646,8 @@ function viewCourse() {
 const PRACTICE = [
   ['Tabuľky hodnôt', ['conn', 'eval', 'table', 'classify', 'equiv', 'consist', 'valid']],
   ['Pravidlá a dôkazy', ['rid', 'rcon', 'proof']],
+  ['Odvodené pravidlá a skratky', ['drid', 'drcon', 'dproof']],
+  ['Pravdivostné stromy', ['trule', 'tbuild', 'tread']],
   ['Preklad a slovné úlohy', ['trans', 'word', 'wordproof']],
 ];
 let practiceDiff = 0;
@@ -2861,7 +3687,7 @@ function viewWeak() {
   $('.yes', appEl).addEventListener('click', () => { S = defState(); save(); viewWeak(); });
 }
 
-const VIEWS = { kurz: viewCourse, test: viewTest, ries: viewSolver, teoria: viewTheory, trening: viewPractice, chyby: viewWeak };
+const VIEWS = { kurz: viewCourse, test: viewTest, ries: viewSolver, tazke: viewHard, teoria: viewTheory, trening: viewPractice, chyby: viewWeak };
 function route() {
   let v = (location.hash || '').replace('#', '');
   if (!VIEWS[v]) v = 'kurz';
