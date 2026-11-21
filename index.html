@@ -262,6 +262,20 @@ table.truth th.cur, table.truth td.cur { outline: 2px solid var(--accent); outli
 .solsent .solf { font-weight: 600; font-size: 1.05rem; margin: 4px 0; }
 .solsent ul { margin: 4px 0 0; padding-left: 1.3em; font-size: .9rem; display: grid; gap: 3px; }
 .hardfull { font-size: 1.05rem; line-height: 1.55; margin-bottom: 12px; }
+.vwrap { margin-top: 10px; max-width: 420px; }
+.venn { width: 100%; height: auto; display: block; touch-action: manipulation; }
+.ved .venn { cursor: pointer; }
+.venn .vbox { fill: var(--surface); stroke: var(--line); }
+.venn .vcirc { fill: none; stroke: var(--ink); stroke-width: 2; }
+.venn .vcirc.e1 { fill: var(--accent); fill-opacity: .12; stroke: var(--accent); }
+.venn .vcirc.e2 { fill: var(--ok); fill-opacity: .10; stroke: var(--ok); }
+.venn .vlab { font: 600 13px var(--font-body); fill: var(--ink); }
+.venn .vx line { stroke: var(--bad); stroke-width: 3; stroke-linecap: round; }
+.venn .vhi { fill: var(--warn); fill-opacity: .25; }
+.venn .vsh-bg { fill: var(--muted); fill-opacity: .18; }
+.venn .vsh-ln { stroke: var(--muted); stroke-width: 2.5; }
+.eulgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; }
+.eulgrid p { font-size: .9rem; margin-bottom: 4px; }
 </style>
 <style>
 .acct { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
@@ -3344,6 +3358,358 @@ chapterFor = function (id, opts) {
   if (id === 'trule' || id === 'tread' || id === 'tbuild') return by('strom');
   return chapterFor0(id, opts);
 };
+// ================= Vennove diagramy, vzťahy medzi pojmami, sylogizmy =================
+TAGS.vrel = ['Vzťahy medzi pojmami', 'vrel'];
+TAGS.venn = ['Vennov diagram výroku', 'vdraw'];
+TAGS.syl = ['Sylogizmy a Vennove diagramy', 'vsyl'];
+
+// ---------- geometria ----------
+const VG = {
+  2: { w: 300, h: 190, c: [[115, 98, 68], [185, 98, 68]], lab: [[62, 22], [238, 22]] },
+  3: { w: 300, h: 260, c: [[118, 92, 66], [182, 92, 66], [150, 150, 66]], lab: [[40, 30], [260, 30], [150, 250]] },
+};
+function vMask(n, x, y) { let m = 0; VG[n].c.forEach(([cx, cy, r], i) => { if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) m |= 1 << i; }); return m; }
+const V_CENT = {};
+for (const n of [2, 3]) {
+  const acc = {};
+  for (let x = 0; x < VG[n].w; x += 2) for (let y = 0; y < VG[n].h; y += 2) { const m = vMask(n, x, y); if (!m) continue; (acc[m] = acc[m] || [0, 0, 0]); acc[m][0] += x; acc[m][1] += y; acc[m][2]++; }
+  V_CENT[n] = {};
+  for (const m in acc) V_CENT[n][m] = [acc[m][0] / acc[m][2], acc[m][1] / acc[m][2]];
+}
+// bod na hranici medzi dvoma oblasťami (na úsečke medzi ich stredmi)
+function vEdge(n, a, b) {
+  const [x1, y1] = V_CENT[n][a], [x2, y2] = V_CENT[n][b];
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 30; k++) { const t = (lo + hi) / 2; if (vMask(n, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t) === a) lo = t; else hi = t; }
+  return [x1 + (x2 - x1) * lo, y1 + (y2 - y1) * lo];
+}
+const vRegions = n => Array.from({ length: (1 << n) - 1 }, (_, i) => i + 1);
+let vUid = 0;
+// st: { shade: Set(mask), xs: [[x,y]], names: [], hi: Set(mask) }
+function vennSVG(n, st) {
+  const G = VG[n], id = 'v' + (++vUid);
+  const regPath = m => {
+    // vyplnená oblasť: prienik zahrnutých kruhov mínus ostatné
+    const inc = G.c.filter((_, i) => m & (1 << i)), exc = G.c.filter((_, i) => !(m & (1 << i)));
+    let g = `<rect x="0" y="0" width="${G.w}" height="${G.h}" />`;
+    inc.forEach((c, k) => { g = `<g clip-path="url(#${id}c${G.c.indexOf(c)})">${g}</g>`; });
+    return `<g mask="url(#${id}m${m})">${g}</g>`;
+  };
+  let defs = G.c.map(([cx, cy, r], i) => `<clipPath id="${id}c${i}"><circle cx="${cx}" cy="${cy}" r="${r}"/></clipPath>`).join('');
+  for (const m of vRegions(n)) defs += `<mask id="${id}m${m}"><rect x="0" y="0" width="${G.w}" height="${G.h}" fill="white"/>${G.c.map(([cx, cy, r], i) => (m & (1 << i) ? '' : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="black"/>`)).join('')}</mask>`;
+  defs += `<pattern id="${id}h" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="vsh-bg"/><line x1="0" y1="0" x2="0" y2="7" class="vsh-ln"/></pattern>`;
+  let body = '';
+  for (const m of vRegions(n)) {
+    if (st.hi && st.hi.has(m)) body += `<g class="vhi">${regPath(m)}</g>`;
+    if (st.shade && st.shade.has(m)) body += `<g fill="url(#${id}h)">${regPath(m)}</g>`;
+  }
+  body += G.c.map(([cx, cy, r]) => `<circle cx="${cx}" cy="${cy}" r="${r}" class="vcirc"/>`).join('');
+  body += (st.xs || []).map(([x, y]) => `<g class="vx"><line x1="${x - 7}" y1="${y - 7}" x2="${x + 7}" y2="${y + 7}"/><line x1="${x + 7}" y1="${y - 7}" x2="${x - 7}" y2="${y + 7}"/></g>`).join('');
+  body += (st.names || []).map((t, i) => `<text x="${G.lab[i][0]}" y="${G.lab[i][1]}" class="vlab" text-anchor="middle">${esc(t)}</text>`).join('');
+  return `<svg class="venn" viewBox="0 0 ${G.w} ${G.h}" role="img" aria-label="Vennov diagram"><defs>${defs}</defs><rect x="2" y="2" width="${G.w - 4}" height="${G.h - 4}" rx="8" class="vbox"/>${body}</svg>`;
+}
+
+// ---------- kategorické výroky ----------
+// q: A všetci S sú P, E žiadni S nie sú P, I niektorí S sú P, O niektorí S nie sú P; s, p = indexy termínov
+const QTXT = { A: (s, p) => `Všetci ${s} sú ${p}.`, E: (s, p) => `Žiadni ${s} nie sú ${p}.`, I: (s, p) => `Niektorí ${s} sú ${p}.`, O: (s, p) => `Niektorí ${s} nie sú ${p}.` };
+const QNAME = { A: 'všeobecne kladný (A)', E: 'všeobecne záporný (E)', I: 'čiastočne kladný (I)', O: 'čiastočne záporný (O)' };
+const QSYM = { A: (s, p) => `(x)(${s}x → ${p}x)`, E: (s, p) => `(x)(${s}x → ¬${p}x)`, I: (s, p) => `(∃x)(${s}x ∧ ${p}x)`, O: (s, p) => `(∃x)(${s}x ∧ ¬${p}x)` };
+function qRegions(n, st) {
+  const S = 1 << st.s, Pm = 1 << st.p;
+  const pos = st.q === 'A' || st.q === 'O' ? m => (m & S) && !(m & Pm) : m => (m & S) && (m & Pm);
+  return vRegions(n).filter(pos);
+}
+const qUniversal = q => q === 'A' || q === 'E';
+// výsledok premís: zatienené oblasti a X (jedna oblasť alebo čiara medzi dvoma)
+function vennOf(n, stmts) {
+  const shade = new Set();
+  stmts.filter(s => qUniversal(s.q)).forEach(s => qRegions(n, s).forEach(m => shade.add(m)));
+  const xs = [], xinfo = [];
+  stmts.filter(s => !qUniversal(s.q)).forEach(s => {
+    const cand = qRegions(n, s).filter(m => !shade.has(m));
+    xinfo.push({ st: s, cand });
+    if (cand.length === 1) xs.push(V_CENT[n][cand[0]]);
+    else if (cand.length === 2) xs.push(vEdge(n, cand[0], cand[1]));
+  });
+  return { shade, xs, xinfo };
+}
+// platnosť (booleovská interpretácia, bez existenčného predpokladu) cez všetky modely
+function sylValid(n, prem, concl) {
+  const R = vRegions(n);
+  for (let mod = 0; mod < 1 << R.length; mod++) {
+    const ne = m => !!(mod & (1 << (m - 1)));
+    const holds = st => { const rs = qRegions(n, st); return qUniversal(st.q) ? rs.every(m => !ne(m)) : rs.some(ne); };
+    if (prem.every(holds) && !holds(concl)) return false;
+  }
+  return true;
+}
+
+// ---------- banky ----------
+const V_TERMS = ['logici', 'filozofi', 'študenti', 'ľudia', 'smrteľníci', 'básnici', 'matematici', 'športovci', 'vegetariáni', 'Slováci', 'Európania', 'lekári', 'učitelia', 'rodičia', 'cicavci', 'psi', 'vtáci', 'politici', 'speváci', 'turisti', 'vodiči', 'šachisti', 'herci', 'optimisti'];
+const V_TERMS_SG = { logici: 'logik', filozofi: 'filozof', študenti: 'študent', ľudia: 'človek', smrteľníci: 'smrteľník', básnici: 'básnik', matematici: 'matematik', športovci: 'športovec', vegetariáni: 'vegetarián', Slováci: 'Slovák', Európania: 'Európan', lekári: 'lekár', učitelia: 'učiteľ', rodičia: 'rodič', cicavci: 'cicavec', psi: 'pes', vtáci: 'vták', politici: 'politik', speváci: 'spevák', turisti: 'turista', vodiči: 'vodič', šachisti: 'šachista', herci: 'herec', optimisti: 'optimista' };
+// vzťahy medzi pojmami: tot, pod (S ⊂ P), nad (S ⊃ P), kriz, vyl
+const REL = {
+  tot: { n: 'totožnosť', d: 'Pojmy majú rovnaký rozsah: každý S je P a každý P je S.', q: 'Všetci S sú P a všetci P sú S.' },
+  pod: { n: 'podraďovanie (prvý je podradený druhému)', d: 'Rozsah prvého pojmu je celý v rozsahu druhého, ale druhý je širší.', q: 'Všetci S sú P, ale nie všetci P sú S.' },
+  nad: { n: 'nadraďovanie (prvý je nadradený druhému)', d: 'Rozsah prvého pojmu obsahuje celý rozsah druhého a ešte niečo navyše.', q: 'Všetci P sú S, ale nie všetci S sú P.' },
+  kriz: { n: 'kríženie (čiastočné prekrývanie)', d: 'Pojmy majú spoločnú časť, ale každý má aj prvky, ktoré do druhého nepatria.', q: 'Niektorí S sú P, niektorí S nie sú P a niektorí P nie sú S.' },
+  vyl: { n: 'vylučovanie', d: 'Pojmy nemajú žiadny spoločný prvok.', q: 'Žiadny S nie je P.' },
+};
+const REL_BANK = [
+  ['pes', 'cicavec', 'pod'], ['ruža', 'kvet', 'pod'], ['Slovák', 'Európan', 'pod'], ['štvorec', 'obdĺžnik', 'pod'], ['sonet', 'báseň', 'pod'], ['dub', 'strom', 'pod'], ['logik', 'vedec', 'pod'], ['prvočíslo väčšie ako 2', 'nepárne číslo', 'pod'], ['krajské mesto', 'mesto', 'pod'],
+  ['cicavec', 'pes', 'nad'], ['ovocie', 'jablko', 'nad'], ['spisovateľ', 'básnik', 'nad'], ['dopravný prostriedok', 'bicykel', 'nad'], ['nástroj', 'kladivo', 'nad'], ['číslo', 'zlomok', 'nad'], ['umelec', 'maliar', 'nad'],
+  ['študent', 'športovec', 'kriz'], ['lekár', 'žena', 'kriz'], ['prvočíslo', 'párne číslo', 'kriz'], ['učiteľ', 'rodič', 'kriz'], ['Slovák', 'vegetarián', 'kriz'], ['spevák', 'herec', 'kriz'], ['červená vec', 'okrúhla vec', 'kriz'], ['politik', 'právnik', 'kriz'],
+  ['mačka', 'pes', 'vyl'], ['párne číslo', 'nepárne číslo', 'vyl'], ['kruh', 'štvorec', 'vyl'], ['ryba', 'cicavec', 'vyl'], ['živý človek', 'mŕtvy človek', 'vyl'], ['pondelok', 'piatok', 'vyl'], ['plyn', 'pevná látka', 'vyl'],
+  ['trojuholník', 'trojstranný mnohouholník', 'tot'], ['rovnostranný trojuholník', 'rovnouhlý trojuholník', 'tot'], ['ženatý muž', 'manžel', 'tot'], ['hlavné mesto Slovenska', 'najväčšie mesto Slovenska', 'tot'], ['párne číslo', 'číslo deliteľné dvomi', 'tot'], ['vdovec', 'muž, ktorému zomrela manželka', 'tot'],
+];
+function eulerSVG(rel, a, b) {
+  const W = 300, H = 170;
+  let c1, c2;
+  switch (rel) {
+    case 'tot': c1 = [150, 88, 64]; c2 = [150, 88, 64]; break;
+    case 'pod': c1 = [150, 100, 38]; c2 = [150, 88, 72]; break;
+    case 'nad': c1 = [150, 88, 72]; c2 = [150, 100, 38]; break;
+    case 'kriz': c1 = [112, 88, 62]; c2 = [188, 88, 62]; break;
+    case 'vyl': c1 = [82, 88, 58]; c2 = [218, 88, 58]; break;
+  }
+  const lab = (c, t, k) => {
+    if (rel === 'tot') return `<text x="150" y="${88 + (k ? 14 : -4)}" class="vlab" text-anchor="middle">${esc(t)}</text>`;
+    if (c[2] < 50) return `<text x="${c[0]}" y="${c[1] + 5}" class="vlab" text-anchor="middle">${esc(t)}</text>`;
+    if (rel === 'pod' || rel === 'nad') return `<text x="${c[0]}" y="${c[1] - c[2] + 22}" class="vlab" text-anchor="middle">${esc(t)}</text>`;
+    return `<text x="${c[0] + (rel === 'kriz' ? (k ? 22 : -22) : 0)}" y="${c[1] + 5}" class="vlab" text-anchor="middle">${esc(t)}</text>`;
+  };
+  const short = t => (t.length > 16 ? t.slice(0, 15) + '…' : t);
+  return `<svg class="venn" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eulerov diagram"><rect x="2" y="2" width="${W - 4}" height="${H - 4}" rx="8" class="vbox"/><circle cx="${c1[0]}" cy="${c1[1]}" r="${c1[2]}" class="vcirc e1"/><circle cx="${c2[0]}" cy="${c2[1]}" r="${c2[2]}" class="vcirc e2"/>${lab(c1, short(a), 0)}${lab(c2, short(b), 1)}</svg>`;
+}
+
+// ---------- úlohy ----------
+GEN.vrel = {
+  label: 'Vzťahy medzi pojmami', desc: 'Totožnosť, podraďovanie, kríženie, vylučovanie',
+  gen(d) {
+    let [a, b, rel] = pick(REL_BANK);
+    const showDiag = d >= 3 && Math.random() < 0.4;
+    const keys = ['tot', 'pod', 'nad', 'kriz', 'vyl'];
+    return {
+      trains: ['vrel'],
+      mount(el, done) {
+        el.innerHTML = showDiag
+          ? `<p class="q">Ktorý vzťah medzi rozsahmi pojmov zobrazuje diagram?</p><div class="vwrap">${eulerSVG(rel, a, b)}</div><div class="choices col"></div><div class="fb"></div>`
+          : `<p class="q">Aký je vzťah medzi rozsahmi pojmov?</p><p class="big" style="white-space:normal;font-family:var(--font-body)">${esc(a)} &nbsp;·&nbsp; ${esc(b)}</p><div class="choices col"></div><div class="fb"></div>`;
+        choiceButtons($('.choices', el), keys.map(k => ({ label: cap(REL[k].n), value: k })), u => {
+          const ok = u === rel;
+          feedback($('.fb', el), ok ? 'ok' : 'bad', ok ? 'Správne' : `Nie, je to ${REL[rel].n}`, `<p>${REL[rel].d}</p><p class="small muted">${esc(REL[rel].q.replace(/\bS\b/g, a).replace(/\bP\b/g, b))}</p>${showDiag ? '' : `<div class="vwrap">${eulerSVG(rel, a, b)}</div>`}`);
+          done({ ok, tags: ok ? [] : ['vrel'] });
+          return rel;
+        });
+      },
+    };
+  },
+};
+function pickTerms(k) { return shuffle(V_TERMS).slice(0, k); }
+// interaktívne kreslenie: klik cykluje prázdne → tieň → X
+function vennEditor(el, n, names) {
+  const shade = new Set(), xs = new Set();
+  const draw = () => {
+    el.innerHTML = vennSVG(n, { shade, names, xs: [...xs].map(m => V_CENT[n][m]) }) + '<p class="small muted">Ťukni na časť diagramu: prvé ťuknutie ju vytieňuje (je prázdna), druhé do nej dá X (niečo v nej je), tretie ju vymaže.</p>';
+    $('svg', el).addEventListener('click', e => {
+      if (el.dataset.locked) return;
+      const svg = $('svg', el), pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+      const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      const m = vMask(n, p.x, p.y);
+      if (!m) return;
+      if (shade.has(m)) { shade.delete(m); xs.add(m); } else if (xs.has(m)) xs.delete(m); else shade.add(m);
+      draw();
+    });
+  };
+  draw();
+  return { shade, xs, lock() { el.dataset.locked = '1'; } };
+}
+function checkDrawing(n, stmts, ed) {
+  const want = vennOf(n, stmts);
+  const msgs = [];
+  let ok = true;
+  const missing = [...want.shade].filter(m => !ed.shade.has(m)), extra = [...ed.shade].filter(m => !want.shade.has(m));
+  if (missing.length) { ok = false; msgs.push('Niektorá časť, ktorá má byť prázdna, nie je vytieňovaná.'); }
+  if (extra.length) { ok = false; msgs.push('Vytieňovaná je aj časť, o ktorej výroky nič nehovoria. Tieňuje sa len to, čo je určite prázdne.'); }
+  const allCand = new Set(want.xinfo.flatMap(x => x.cand));
+  if ([...ed.xs].some(m => !allCand.has(m))) { ok = false; msgs.push('X je v časti, kde podľa výrokov nemusí nič byť.'); }
+  let onLine = false;
+  want.xinfo.forEach(x => {
+    if (!x.cand.some(m => ed.xs.has(m))) { ok = false; msgs.push(`Chýba X pre výrok „${x.st.txt}“.`); }
+    if (x.cand.length > 1) onLine = true;
+  });
+  return { ok, msgs, onLine, want };
+}
+GEN.vdraw = {
+  label: 'Vennov diagram výroku', desc: 'Nakresli výrok „všetci / žiadni / niektorí“',
+  gen(d) {
+    const q = pick(d <= 1 ? ['A', 'E'] : ['A', 'E', 'I', 'O']);
+    const [s, p] = d >= 2 ? pickTerms(2) : ['S', 'P'];
+    const st = { q, s: 0, p: 1, txt: d >= 2 ? QTXT[q](s, p) : QTXT[q]('S', 'P') };
+    return {
+      trains: ['venn'],
+      mount(el, done) {
+        el.innerHTML = `<p class="q">Nakresli Vennov diagram výroku:</p><p class="big" style="white-space:normal;font-family:var(--font-body)">${esc(st.txt)}</p><div class="vwrap ved"></div><div class="row" style="margin-top:10px"><button class="btn primary chk">Skontrolovať</button><button class="btn ghost show">Ukázať riešenie</button></div><div class="fb"></div>`;
+        const ed = vennEditor($('.ved', el), 2, [s, p]);
+        let reported = false;
+        const solution = () => { const w = vennOf(2, [st]); return `<div class="vwrap">${vennSVG(2, { shade: w.shade, xs: w.xs, names: [s, p] })}</div><p>${esc(st.txt)} je ${QNAME[q]} výrok, v predikátovej logike ${F_(QSYM[q]('S', 'P'))}. ${qUniversal(q) ? `Hovorí, že časť ${q === 'A' ? '„S, ktoré nie sú P“' : '„S, ktoré sú P“'} je <b>prázdna</b>, preto sa vytieňuje.` : `Hovorí, že v časti ${q === 'I' ? '„S, ktoré sú P“' : '„S, ktoré nie sú P“'} <b>niečo je</b>, preto sa do nej dá X.`}</p>`; };
+        const end = ok => { if (!reported) { reported = true; ed.lock(); done({ ok, tags: ok ? [] : ['venn'] }); } $('.chk', el).disabled = true; $('.show', el).disabled = true; };
+        $('.chk', el).addEventListener('click', () => {
+          const r = checkDrawing(2, [st], ed);
+          feedback($('.fb', el), r.ok ? 'ok' : 'bad', r.ok ? 'Správne' : 'Ešte nie', (r.ok ? '' : r.msgs.map(m => `<p>${m}</p>`).join('') + '<p>Správne riešenie:</p>') + solution());
+          end(r.ok);
+        });
+        $('.show', el).addEventListener('click', () => { feedback($('.fb', el), 'info', 'Riešenie', solution()); end(false); });
+      },
+    };
+  },
+};
+GEN.vread = {
+  label: 'Čítanie Vennovho diagramu', desc: 'Ktorý výrok zobrazuje diagram?',
+  gen(d) {
+    const q = pick(['A', 'E', 'I', 'O']);
+    const [s, p] = d >= 2 ? pickTerms(2) : ['S', 'P'];
+    const st = { q, s: 0, p: 1 };
+    const w = vennOf(2, [st]);
+    return {
+      trains: ['venn'],
+      mount(el, done) {
+        el.innerHTML = `<p class="q">Ktorý výrok zobrazuje diagram? Vytieňovaná časť je prázdna, X znamená, že tam niečo je.</p><div class="vwrap">${vennSVG(2, { shade: w.shade, xs: w.xs, names: [s, p] })}</div><div class="choices col"></div><div class="fb"></div>`;
+        const opts = ['A', 'E', 'I', 'O'].map(k => ({ label: QTXT[k](s, p), value: k })).concat([{ label: QTXT.A(p, s), value: 'A2' }]);
+        choiceButtons($('.choices', el), shuffle(opts), u => {
+          const ok = u === q;
+          feedback($('.fb', el), ok ? 'ok' : 'bad', ok ? 'Správne' : 'Nie', `<p>${esc(QTXT[q](s, p))} ${qUniversal(q) ? 'Všeobecný výrok tvrdí, že niečo neexistuje, preto sa kreslí tieňom.' : 'Čiastočný výrok tvrdí, že niečo existuje, preto sa kreslí krížikom X.'}</p>`);
+          done({ ok, tags: ok ? [] : ['venn'] });
+          return q;
+        });
+      },
+    };
+  },
+};
+// ---------- sylogizmy ----------
+function genSyl(d, wantValid) {
+  for (let k = 0; k < 200; k++) {
+    const [S, Mt, Pt] = d >= 2 ? pickTerms(3) : ['S', 'M', 'P'];
+    const fig = 1 + rnd(4);
+    const q1 = pick('AEIO'), q2 = pick('AEIO'), q3 = pick('AEIO');
+    // termíny: 0 = S, 1 = M, 2 = P
+    const p1 = fig === 1 || fig === 3 ? { q: q1, s: 1, p: 2 } : { q: q1, s: 2, p: 1 };
+    const p2 = fig === 1 || fig === 2 ? { q: q2, s: 0, p: 1 } : { q: q2, s: 1, p: 0 };
+    const c = { q: q3, s: 0, p: 2 };
+    const names = [S, Mt, Pt];
+    [p1, p2, c].forEach(x => (x.txt = QTXT[x.q](names[x.s], names[x.p])));
+    const valid = sylValid(3, [p1, p2], c);
+    if (wantValid !== undefined && valid !== wantValid) continue;
+    if (!valid && Math.random() < 0.5 && d >= 3 && ![p1, p2].some(x => !qUniversal(x.q))) continue;
+    return { names, prem: [p1, p2], concl: c, valid };
+  }
+  return null;
+}
+function sylExplain(sy) {
+  const w = vennOf(3, sy.prem);
+  const c = sy.concl, rs = qRegions(3, c);
+  const steps = [];
+  const order = sy.prem.slice().sort((a, b) => (qUniversal(a.q) ? 0 : 1) - (qUniversal(b.q) ? 0 : 1));
+  order.forEach((p, i) => steps.push(qUniversal(p.q) ? `<li>„${esc(p.txt)}“ je všeobecný výrok, preto vytieňujeme časť, ktorá je podľa neho prázdna.</li>` : `<li>„${esc(p.txt)}“ je čiastočný výrok, preto kreslíme X. ${(() => { const x = w.xinfo.find(z => z.st === p); return x.cand.length === 1 ? 'Jedna z možných častí je už vytieňovaná, takže X ide jednoznačne do zvyšnej.' : x.cand.length === 2 ? 'Do ktorej z dvoch častí patrí, nevieme, preto X kreslíme <b>na čiaru</b> medzi ne.' : ''; })()}</li>`));
+  if (sy.prem.some(p => qUniversal(p.q)) && sy.prem.some(p => !qUniversal(p.q))) steps.unshift('<li>Najprv kreslíme všeobecné výroky (tieň), až potom čiastočné (X). Tak X skončí na správnom mieste.</li>');
+  let verdict;
+  if (qUniversal(c.q)) {
+    const all = rs.every(m => w.shade.has(m));
+    verdict = all ? `Záver „${esc(c.txt)}“ by vyžadoval, aby bola vytieňovaná určitá časť kruhov S a P. Tá už vytieňovaná <b>je</b>, takže záver je v diagrame zakreslený a úsudok je <b>platný</b>.` : `Záver „${esc(c.txt)}“ by vyžadoval vytieňovanú časť, ktorá vytieňovaná <b>nie je</b>. Premisy to nezaručujú, úsudok je <b>neplatný</b>.`;
+  } else {
+    const sure = w.xinfo.some(x => x.cand.length && x.cand.every(m => rs.includes(m)));
+    const maybe = w.xinfo.some(x => x.cand.some(m => rs.includes(m)));
+    verdict = sure ? `Záver „${esc(c.txt)}“ tvrdí, že v istej časti niečo je. X tam z premís <b>určite</b> je, takže úsudok je <b>platný</b>.` : maybe ? `Záver „${esc(c.txt)}“ by potreboval X v istej časti, ale X leží na čiare, takže nevieme, či je naozaj tam. Úsudok je <b>neplatný</b>.` : `Záver „${esc(c.txt)}“ by potreboval X v istej časti, ale žiadne X tam nie je. Úsudok je <b>neplatný</b>.`;
+  }
+  return { w, html: `<ol class="sexpl">${steps.join('')}</ol><p style="margin-top:8px">${verdict}</p>`, hi: new Set(rs) };
+}
+GEN.vsyl = {
+  label: 'Sylogizmy (Vennov diagram)', desc: 'Nakresli premisy do troch kruhov a rozhodni o platnosti',
+  gen(d) {
+    const sy = genSyl(d, Math.random() < 0.5) || genSyl(d);
+    const draw = d >= 2;
+    return {
+      trains: ['syl'],
+      mount(el, done) {
+        const tags = [];
+        el.innerHTML = `<p class="q">${draw ? 'Nakresli premisy do Vennovho diagramu a potom rozhodni, či je úsudok platný.' : 'Je úsudok platný? Pomôž si Vennovým diagramom.'}</p><div class="hardtext" style="line-height:1.7">${sy.prem.map(p => esc(p.txt)).join('<br>')}<br><span class="muted">∴</span> ${esc(sy.concl.txt)}</div><div class="vwrap ved"></div><div class="row s1" style="margin-top:10px">${draw ? '<button class="btn primary chk">Skontrolovať diagram</button>' : ''}</div><div class="s2"></div><div class="fb"></div>`;
+        const ed = draw ? vennEditor($('.ved', el), 3, sy.names) : null;
+        if (!draw) $('.ved', el).innerHTML = vennSVG(3, { names: sy.names });
+        let drawOk = true;
+        const ask = () => {
+          $('.s2', el).innerHTML = '<p class="q" style="margin-top:12px">Je úsudok platný?</p><div class="choices"></div>';
+          choiceButtons($('.choices', $('.s2', el)), [{ label: 'Platný', value: true }, { label: 'Neplatný', value: false }], u => {
+            const ok = u === sy.valid;
+            if (!ok) tags.push('syl');
+            const ex = sylExplain(sy);
+            $('.ved', el).innerHTML = vennSVG(3, { shade: ex.w.shade, xs: ex.w.xs, names: sy.names, hi: ex.hi });
+            feedback($('.fb', el), ok ? 'ok' : 'bad', ok ? 'Správne' : (sy.valid ? 'Nie, úsudok je platný' : 'Nie, úsudok je neplatný'), ex.html + '<p class="small muted">Zvýraznená je časť diagramu, o ktorej hovorí záver.</p>');
+            done({ ok: ok && drawOk, tags });
+            return sy.valid;
+          });
+        };
+        if (!draw) return ask();
+        $('.chk', el).addEventListener('click', () => {
+          const r = checkDrawing(3, sy.prem, ed);
+          ed.lock(); $('.chk', el).disabled = true;
+          if (!r.ok) { drawOk = false; tags.push('venn'); }
+          const w = r.want;
+          $('.ved', el).innerHTML = vennSVG(3, { shade: w.shade, xs: w.xs, names: sy.names });
+          feedback($('.fb', el), r.ok ? 'ok' : 'bad', r.ok ? 'Diagram je správne' : 'Diagram nie je celkom správne', (r.ok ? '' : r.msgs.map(m => `<p>${m}</p>`).join('')) + (r.onLine ? '<p>Pozor: keď X môže byť v dvoch častiach, kreslí sa <b>na čiaru</b> medzi ne. Tu je to už opravené.</p>' : '') + '<p class="small muted">Diagram teraz ukazuje správne zakreslené premisy.</p>');
+          ask();
+        });
+      },
+    };
+  },
+};
+HOWTO.vrel = ['Predstav si všetky veci, ktoré pod prvý pojem patria, a všetky, ktoré patria pod druhý.', 'Je každý prvý aj druhý? A naopak? Ak oboje, je to totožnosť. Ak len prvé, podraďovanie.', 'Majú spoločné prvky, ale každý má aj vlastné? Kríženie. Nemajú nič spoločné? Vylučovanie.'];
+HOWTO.vdraw = ['Nakresli dva kruhy, S vľavo a P vpravo.', '„Všetci S sú P“: časť S mimo P je prázdna, vytieňuj ju.', '„Žiadni S nie sú P“: prienik S a P je prázdny, vytieňuj ho.', '„Niektorí S sú P“: X do prieniku. „Niektorí S nie sú P“: X do časti S mimo P.'];
+HOWTO.vread = ['Tieň znamená prázdnu časť, teda všeobecný výrok (všetci, žiadni).', 'X znamená, že niečo existuje, teda čiastočný výrok (niektorí).', 'Pozri, ktorá časť je označená: S mimo P, alebo prienik S a P.'];
+HOWTO.vsyl = ['Nakresli tri kruhy pre tri termíny záveru a stredného termínu.', 'Najprv zakresli všeobecné premisy (tieň), až potom čiastočné (X).', 'Ak X môže ísť do dvoch častí, patrí na čiaru medzi ne.', 'Záver nekresli. Len sa pozri, či už v diagrame je: tieň tam, kde ho záver potrebuje, alebo X určite v jeho časti.'];
+GLOSSARY.push(
+  ['rozsah', 'Rozsah pojmu', 'Všetky veci, na ktoré sa pojem vzťahuje. Rozsah pojmu „pes“ sú všetky psy. Na Vennovom diagrame je to kruh.'],
+  ['vennov|vennove|vennovým|vennovho', 'Vennov diagram', 'Prekrývajúce sa kruhy, kde každý kruh je rozsah jedného pojmu. Vytieňovaná časť je prázdna, X znamená, že v časti niečo je.'],
+  ['stredn[a-záäčďéíĺľňóôŕšťúýž]* termín', 'Stredný termín', 'Pojem, ktorý je v oboch premisách sylogizmu, ale nie v závere. Spája ich.'],
+  ['kategorick', 'Kategorický výrok', 'Výrok typu všetci S sú P (A), žiadni S nie sú P (E), niektorí S sú P (I), niektorí S nie sú P (O).'],
+);
+
+// ---------- teória ----------
+CHAPTERS.push(
+  { id: 'pojmy', part: 'Pojmy a Vennove diagramy', t: 'Vzťahy medzi pojmami', gens: ['vrel'], html: `
+<p>Každý pojem má <b>rozsah</b> (extenziu): všetky veci, na ktoré sa vzťahuje. Rozsah pojmu „pes“ sú všetky psy. Rozsah kreslíme ako kruh. Podľa toho, ako sa rozsahy dvoch pojmov S a P k sebe majú, rozlišujeme päť vzťahov:</p>
+<div class="eulgrid">
+<div><p><b>Totožnosť</b><br><span class="small muted">rovnaký rozsah: každý S je P a každý P je S</span></p>${eulerSVG('tot', 'trojuholník', 'trojstranný mnohouholník')}</div>
+<div><p><b>Podraďovanie</b><br><span class="small muted">S je celý v P, P je širší: každý pes je cicavec</span></p>${eulerSVG('pod', 'pes', 'cicavec')}</div>
+<div><p><b>Nadraďovanie</b><br><span class="small muted">opak podraďovania: ovocie zahŕňa jablká</span></p>${eulerSVG('nad', 'ovocie', 'jablko')}</div>
+<div><p><b>Kríženie</b><br><span class="small muted">čiastočné prekrývanie: niektorí študenti sú športovci, niektorí nie a niektorí športovci nie sú študenti</span></p>${eulerSVG('kriz', 'študent', 'športovec')}</div>
+<div><p><b>Vylučovanie</b><br><span class="small muted">žiadny spoločný prvok: žiadna mačka nie je pes</span></p>${eulerSVG('vyl', 'mačka', 'pes')}</div>
+</div>
+${box('tip', 'Ako to určiť', `<p>Polož si dve otázky: „Je každý S aj P?“ a „Je každý P aj S?“. Áno a áno je totožnosť, áno a nie podraďovanie, nie a áno nadraďovanie. Ak oboje nie, rozhodni, či majú niečo spoločné (kríženie), alebo nič (vylučovanie).</p>`)}
+<p>Takýmto kruhom, ktoré ukazujú skutočný vzťah, sa hovorí <b>Eulerove diagramy</b>. Vennove diagramy z nasledujúcej kapitoly kreslia kruhy vždy prekryté a vzťah vyznačujú tieňom a krížikom.</p>` },
+  { id: 'venn', part: 'Pojmy a Vennove diagramy', t: 'Vennove diagramy a sylogizmy', gens: ['vdraw'], html: `
+<p>Výroky o pojmoch, ktoré hovoria o celom rozsahu alebo jeho časti, sa volajú <b>kategorické výroky</b>. Sú štyri typy:</p>
+<div class="tt"><table class="truth"><thead><tr><th>typ</th><th>výrok</th><th>v predikátovej logike</th><th>diagram</th></tr></thead><tbody>
+<tr><td>A</td><td style="text-align:left">Všetci S sú P.</td><td>(x)(Sx → Px)</td><td style="text-align:left;white-space:normal">S mimo P je prázdne (tieň)</td></tr>
+<tr><td>E</td><td style="text-align:left">Žiadni S nie sú P.</td><td>(x)(Sx → ¬Px)</td><td style="text-align:left;white-space:normal">prienik S a P je prázdny (tieň)</td></tr>
+<tr><td>I</td><td style="text-align:left">Niektorí S sú P.</td><td>(∃x)(Sx ∧ Px)</td><td style="text-align:left;white-space:normal">X v prieniku S a P</td></tr>
+<tr><td>O</td><td style="text-align:left">Niektorí S nie sú P.</td><td>(∃x)(Sx ∧ ¬Px)</td><td style="text-align:left;white-space:normal">X v S mimo P</td></tr></tbody></table></div>
+<p>Vo <b>Vennovom diagrame</b> sa kruhy vždy prekrývajú. <b>Tieň</b> znamená, že časť je prázdna. <b>X</b> znamená, že v nej aspoň jedna vec je. Bez označenia nevieme nič.</p>
+<div class="eulgrid">${['A', 'E', 'I', 'O'].map(q => { const w = vennOf(2, [{ q, s: 0, p: 1 }]); return `<div><p><b>${q}</b>: ${QTXT[q]('S', 'P')}</p>${vennSVG(2, { shade: w.shade, xs: w.xs, names: ['S', 'P'] })}</div>`; }).join('')}</div>
+<h4>Sylogizmus</h4>
+<p><b>Sylogizmus</b> má dve premisy a záver a v nich tri pojmy: S (podmet záveru), P (prísudok záveru) a <b>stredný termín</b> M, ktorý je v oboch premisách, ale nie v závere. Platnosť overíme tromi kruhmi:</p>
+<ol><li>Nakresli tri prekryté kruhy S, M, P.</li><li>Zakresli <b>všeobecné</b> premisy (A, E) tieňom.</li><li>Potom zakresli <b>čiastočné</b> premisy (I, O) krížikom. Ak X môže byť v dvoch častiach, kreslí sa <b>na čiaru</b> medzi ne.</li><li>Záver <b>nekresli</b>. Pozri sa, či už v diagrame je. Ak áno, úsudok je platný. Ak nie, je neplatný.</li></ol>
+<div class="ex"><p class="excap">Príklad: Všetci logici sú filozofi. Niektorí študenti sú logici. ∴ Niektorí študenti sú filozofi.</p>${(() => { const sy = { names: ['študenti', 'logici', 'filozofi'], prem: [{ q: 'A', s: 1, p: 2, txt: 'Všetci logici sú filozofi.' }, { q: 'I', s: 0, p: 1, txt: 'Niektorí študenti sú logici.' }], concl: { q: 'I', s: 0, p: 2, txt: 'Niektorí študenti sú filozofi.' } }; const ex = sylExplain(sy); return `<div class="vwrap">${vennSVG(3, { shade: ex.w.shade, xs: ex.w.xs, names: sy.names, hi: ex.hi })}</div>${ex.html}`; })()}</div>
+<div class="ex"><p class="excap">Príklad: Všetci psi sú cicavci. Niektorí cicavci sú vtáci. ∴ Niektorí psi sú vtáci.</p>${(() => { const sy = { names: ['psi', 'cicavci', 'vtáci'], prem: [{ q: 'A', s: 0, p: 1, txt: 'Všetci psi sú cicavci.' }, { q: 'I', s: 1, p: 2, txt: 'Niektorí cicavci sú vtáci.' }], concl: { q: 'I', s: 0, p: 2, txt: 'Niektorí psi sú vtáci.' } }; const ex = sylExplain(sy); return `<div class="vwrap">${vennSVG(3, { shade: ex.w.shade, xs: ex.w.xs, names: sy.names, hi: ex.hi })}</div>${ex.html}`; })()}</div>
+${box('warn', 'Pozor na existenciu', `<p>Moderná logika (aj predikátová logika v skriptách) nepredpokladá, že veci, o ktorých hovorí všeobecný výrok, existujú. „Všetci S sú P“ len tvrdí, že žiadne S nie je mimo P, nie že nejaké S je. Preto z dvoch všeobecných premís nikdy neplynie čiastočný záver („niektorí…“).</p>`)}` },
+);
+LEVEL_CH.push(['pojmy'], ['venn'], ['venn']);
+const chapterFor1 = chapterFor;
+chapterFor = function (id, opts) {
+  const by = x => CHAPTERS.findIndex(c => c.id === x);
+  if (id === 'vrel') return by('pojmy');
+  if (id === 'vdraw' || id === 'vread' || id === 'vsyl') return by('venn');
+  return chapterFor1(id, opts);
+};
 // ================= web: prihlásenie a ukladanie postupu (Supabase) =================
 const CFG = window.LOGIKA_CONFIG || {};
 let sb = null, sbUser = null, remoteBusy = false, remoteDirty = false, remoteTimer = null;
@@ -3530,6 +3896,12 @@ const LEVELS = [
     th: '<p>V pravdivostnom strome sa každá zložená formula rozkladá na jednoduchšie.</p><p><b>Bez vetvenia</b> (píše sa pod seba): A ∧ B dá A, B. ¬(A ∨ B) dá ¬A, ¬B. ¬(A → B) dá A, ¬B. ¬¬A dá A.</p><p><b>S vetvením</b>: A ∨ B na A | B. A → B na ¬A | B. ¬(A ∧ B) na ¬A | ¬B. A ↔ B na A, B | ¬A, ¬B. ¬(A ↔ B) na A, ¬B | ¬A, B.</p>' },
   { part: 'Pravdivostné stromy', t: 'Strom: stavba a platnosť argumentu', mix: [['tbuild', {}, 2], ['tread', {}, 1]], d: [1, 4], n: 5, pass: 4,
     th: '<p>Na začiatok stromu ide každá premisa a <b>negácia záveru</b>. Formuly rozkladáš, kým sa dá. Vetva sa uzavrie, keď je na nej formula aj jej negácia.</p><p>Všetky vetvy uzavreté: argument je platný. Zostane otvorená vetva: argument je neplatný a z vetvy prečítaš protipríklad.</p>' },
+  { part: 'Pojmy a Vennove diagramy', t: 'Vzťahy medzi pojmami', mix: [['vrel', {}, 1]], d: [1, 4], n: 8, pass: 6,
+    th: '<p>Rozsah pojmu sú všetky veci, na ktoré sa vzťahuje. Medzi rozsahmi dvoch pojmov je jeden z piatich vzťahov: <b>totožnosť</b> (rovnaký rozsah), <b>podraďovanie</b> (prvý je celý v druhom), <b>nadraďovanie</b> (prvý obsahuje druhý), <b>kríženie</b> (čiastočne sa prekrývajú) a <b>vylučovanie</b> (nemajú nič spoločné).</p>' },
+  { part: 'Pojmy a Vennove diagramy', t: 'Vennov diagram: všetci, žiadni, niektorí', mix: [['vdraw', {}, 2], ['vread', {}, 1]], d: [1, 3], n: 8, pass: 6,
+    th: '<p>Vo Vennovom diagrame <b>tieň</b> znamená prázdnu časť a <b>X</b> znamená, že v nej niečo je.</p><ul><li><b>Všetci S sú P</b>: tieň v S mimo P.</li><li><b>Žiadni S nie sú P</b>: tieň v prieniku.</li><li><b>Niektorí S sú P</b>: X v prieniku.</li><li><b>Niektorí S nie sú P</b>: X v S mimo P.</li></ul><p>Na diagram ťukaj: prvé ťuknutie vytieňuje, druhé dá X, tretie vymaže.</p>' },
+  { part: 'Pojmy a Vennove diagramy', t: 'Sylogizmy s tromi kruhmi', mix: [['vsyl', {}, 1]], d: [1, 4], n: 6, pass: 5,
+    th: '<p>Nakresli tri kruhy (S, M, P). Najprv zakresli všeobecné premisy tieňom, potom čiastočné krížikom. Ak X môže byť v dvoch častiach, patrí na čiaru. Záver nekresli: ak už v diagrame je, úsudok je platný.</p>' },
 ];
 
 function levelUnlocked(i) { return S.unlockAll || i === 0 || (S.levels[i - 1] && S.levels[i - 1].passed); }
@@ -3628,7 +4000,7 @@ function openLevel(li) {
 function viewCourse() {
   const parts = [...new Set(LEVELS.map(l => l.part))];
   const curIdx = LEVELS.findIndex((_, i) => !(S.levels[i] && S.levels[i].passed));
-  let h = `<div class="stack"><div><h2>Kurz</h2><p class="muted">${LEVELS.length} levelov od spojok cez dôkazy a slovné úlohy po odvodené pravidlá a pravdivostné stromy. Každý level má krátke zhrnutie, odkaz na podrobnú teóriu a sadu úloh. Splnený level odomkne ďalší.</p></div>`;
+  let h = `<div class="stack"><div><h2>Kurz</h2><p class="muted">${LEVELS.length} levelov od spojok cez dôkazy a slovné úlohy po odvodené pravidlá, pravdivostné stromy a Vennove diagramy. Každý level má krátke zhrnutie, odkaz na podrobnú teóriu a sadu úloh. Splnený level odomkne ďalší.</p></div>`;
   parts.forEach(p => {
     h += `<div class="part"><h3>${p}</h3><div class="levels">`;
     LEVELS.forEach((L, i) => {
@@ -3648,6 +4020,7 @@ const PRACTICE = [
   ['Pravidlá a dôkazy', ['rid', 'rcon', 'proof']],
   ['Odvodené pravidlá a skratky', ['drid', 'drcon', 'dproof']],
   ['Pravdivostné stromy', ['trule', 'tbuild', 'tread']],
+  ['Pojmy a Vennove diagramy', ['vrel', 'vdraw', 'vread', 'vsyl']],
   ['Preklad a slovné úlohy', ['trans', 'word', 'wordproof']],
 ];
 let practiceDiff = 0;
